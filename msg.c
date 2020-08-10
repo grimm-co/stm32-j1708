@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "main.h"
 #include "msg.h"
-#include "msg.h"
+#include "usb.h"
 
 void copy_msg(msg_t *dst, msg_t *src) {
     memcpy((void*) dst, (void*) src, sizeof(msg_t));
@@ -20,7 +20,8 @@ uint8_t copy_from_msg(uint8_t *dst, msg_t *src) {
 }
 
 static char nibble_to_char(uint8_t val) {
-    if (0 <= val && 9 >= val) {
+    /* val is unsigned so no need to check if < 0 */
+    if (9 >= val) {
         return '0' + val;
     } else {
         return 'A' + (val - 10);

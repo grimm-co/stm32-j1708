@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/desig.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 #include <libopencm3/cm3/scb.h>
@@ -162,9 +163,15 @@ static const struct usb_config_descriptor config = {
     .interface = ifaces,
 };
 
+/* The UID for the STM32 device is 3 32bit values, each byte is 2 chars, so the 
+ * total length for the UID string is (3 * 4 * 2) + 1 (for null char) */
+#define UID_LEN ((3 * 4 * 2) + 1)
+static char uid_buf[UID_LEN];
+
 static const char *usb_strings[] = {
     "GRIMM j1708cat (WIP)",
     "SAE J1708 Reader",
+    uid_buf,
 };
 
 /* Buffer to be used for control requests. */
@@ -175,8 +182,7 @@ static enum usbd_request_return_codes cdcacm_control_request(
     struct usb_setup_data *req,
     UNUSED uint8_t **buf,
     uint16_t *len,
-    UNUSED void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req))
-{
+    UNUSED void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req)) {
     switch (req->bRequest) {
     case USB_CDC_REQ_SET_CONTROL_LINE_STATE: {
         /*
@@ -205,23 +211,29 @@ static enum usbd_request_return_codes cdcacm_control_request(
     return USBD_REQ_NOTSUPP;
 }
 
-static msg_t rx_msg;
+volatile bool usb_ready = false;
 
-static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep)
-{
+static void cdcacm_reset(void) {
+  usb_ready = false;
+}
+
+static msg_t rx_msg = MSG_INIT;
+
+static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep) {
     uint8_t buf[64];
 
-    /* Transmit any valid message received from the host out the J1708 UART */
+    /* Get the message from the USB host */
     int len = usbd_ep_read_packet(usbd_dev, 0x01, buf, 64);
 
     if ((0 < len) && (buf[0] == HOST_MSG_START) && (buf[len] == HOST_MSG_END)) {
-        /* Only save the data between the msg delimiters */
+        /* If the message has the expected start and end delimiters, copy the 
+         * message into the received buffer. Only save the data between the msg 
+         * delimiters */
         copy_to_msg(&rx_msg, &buf[1], len - 2);
     }
 }
 
-static void cdcacm_set_config(usbd_device *usbd_dev, UNUSED uint16_t wValue)
-{
+static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
     usbd_ep_setup(usbd_dev, 0x01, USB_ENDPOINT_ATTR_BULK, 64, cdcacm_data_rx_cb);
     usbd_ep_setup(usbd_dev, 0x82, USB_ENDPOINT_ATTR_BULK, 64, NULL);
     usbd_ep_setup(usbd_dev, 0x83, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
@@ -231,6 +243,10 @@ static void cdcacm_set_config(usbd_device *usbd_dev, UNUSED uint16_t wValue)
                 USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
                 USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
                 cdcacm_control_request);
+
+    if (wValue > 0) {
+        usb_ready = true;
+    }
 }
 
 static usbd_device *usbd_dev;
@@ -248,17 +264,21 @@ void usb_lp_can_rx0_isr(void) {
 }
 
 void usb_setup(void) {
-    SCB_VTOR = (uint32_t) 0x08005000;
-
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
-
+    /* Needed for USB */
     rcc_periph_clock_enable(RCC_GPIOA);
-    rcc_periph_clock_enable(RCC_GPIOC);
+
+    desig_get_unique_id_as_string(uid_buf, UID_LEN);
 
     usbd_dev = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
-                         usb_strings, 2,
+                         usb_strings, 3,
                          usbd_control_buffer, sizeof(usbd_control_buffer));
+
     usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
+    usbd_register_reset_callback(usbd_dev, cdcacm_reset);
+
+    /* NOTE: Must be called after USB setup since this enables calling usbd_poll(). */
+    nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
+    nvic_enable_irq(NVIC_USB_WAKEUP_IRQ);
 }
 
 void usb_write(uint8_t *buf, uint8_t len) {

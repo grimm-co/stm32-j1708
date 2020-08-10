@@ -15,8 +15,8 @@
 /* Message type that is used for both the J1708 and USB ISRs to store incoming 
  * messages */
 typedef struct {
-    uint8_t idx;
-    uint8_t len;
+    volatile uint8_t idx;
+    volatile uint8_t len;
     uint8_t buf[HOST_MAX_MSG_SIZE];
 } msg_t;
 

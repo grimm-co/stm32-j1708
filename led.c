@@ -6,11 +6,13 @@ static void gpio_setup(void) {
     rcc_periph_clock_enable(RCC_GPIOC);
 
     /* GPIO PC13 is the user controllable LED */
-    gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
+    gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
 }
 
 void led_setup(void) {
     gpio_setup();
+
+    led_off();
 }
 
 void led_toggle(void) {
@@ -18,9 +20,9 @@ void led_toggle(void) {
 }
 
 void led_on(void) {
-    gpio_set(GPIOC, GPIO13);
+    gpio_clear(GPIOC, GPIO13);
 }
 
 void led_off(void) {
-    gpio_clear(GPIOC, GPIO13);
+    gpio_set(GPIOC, GPIO13);
 }

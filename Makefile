@@ -4,9 +4,6 @@
 
 PROGRAM  = stm32-j1708
 CROSS   ?= arm-none-eabi-
-SERIAL  ?= /dev/ttyUSB0
-PSERIAL ?= /dev/ttyACM0
-SPISPD  ?= 1000000000
 OBJS     = $(patsubst %.c,%.o,$(wildcard *.c))
 DEPS     = $(patsubst %.c,%.d,$(wildcard *.c))
 
