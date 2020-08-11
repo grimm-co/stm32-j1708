@@ -5,3 +5,4 @@
 *.elf
 *.out
 *.bin
+__pycache__/
