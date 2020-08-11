@@ -44,7 +44,7 @@ void timer_setup(void) {
     timer_config(TIM2, 48000, J1708_MSG_TIMEOUT * 5);
 
     /* TIM3: collision wait/retry timer - EOM timeout + (priority * 2) */
-    timer_config(TIM3, 12000, J1708_COLLISION_WAIT * 5);
+    timer_config(TIM3, 48000, J1708_COLLISION_WAIT * 5);
 }
 
 void timer_set_handler(uint32_t timer_peripheral, timer_handler_t handler) {
@@ -63,6 +63,11 @@ void timer_start(uint32_t timer_peripheral) {
 void timer_stop(uint32_t timer_peripheral) {
     timer_disable_irq(timer_peripheral, TIM_DIER_UIE);
     timer_disable_counter(timer_peripheral);
+}
+
+void timer_restart(uint32_t timer_peripheral) {
+    timer_set_counter(timer_peripheral, 0);
+    timer_start(timer_peripheral);
 }
 
 void tim2_isr(void) {

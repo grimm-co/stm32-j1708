@@ -42,7 +42,7 @@ void j1708_to_host(msg_t *msg) {
     out.len = out.idx;
 
     /* Now send this to the host */
-    usb_write(out.buf, out.len);
+    usb_write((uint8_t*) out.buf, out.len);
 }
 
 void host_to_j1708(msg_t *msg) {
@@ -63,5 +63,5 @@ void host_to_j1708(msg_t *msg) {
     out.len = out.idx;
 
     /* Now send this out the J1708 UART */
-    j1708_write(out.buf, out.len);
+    j1708_write((uint8_t*) out.buf, out.len);
 }

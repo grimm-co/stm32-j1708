@@ -7,10 +7,6 @@
 #include "led.h"
 #include "timer.h"
 
-/* Mapping the J1708 events we use timers for to the STM32 timer names */
-#define EOM_TIMER TIM2
-#define COL_TIMER TIM3
-
 static msg_t rx_complete = MSG_INIT;
 static msg_t rx_in_progress = MSG_INIT;
 static msg_t tx_in_progress = MSG_INIT;
@@ -60,12 +56,12 @@ static void j1708_tx_next_byte(void) {
         /* Make sure to clear any current TXE interrupt flag */
         USART_SR(USART1) &= ~USART_CR1_TXEIE;
     }
-
 }
 
 static void j1708_eom_timer_handler(void) {
+    led_off();
     /* The J1708 message is complete, save it */
-    copy_to_msg(&rx_complete, rx_in_progress.buf, rx_in_progress.idx);
+    copy_to_msg(&rx_complete, (uint8_t*) rx_in_progress.buf, rx_in_progress.idx);
 
     /* Reset the receive in-progress buffer */
     rx_in_progress.idx = 0;
@@ -80,9 +76,7 @@ static void j1708_col_timer_handler(void) {
 
 void j1708_setup(void) {
     led_setup();
-    led_off();
-
-    //timer_setup();
+    timer_setup();
     usart_setup();
 
     /* Set the timer to count J1708 "bit times" and install our timer ISR 
@@ -137,6 +131,7 @@ void usart1_isr(void) {
     uint8_t data, prev_data;
 
     if (usart_get_flag(USART1, USART_FLAG_RXNE)) {
+        led_on();
 
         /* Retrieve the byte from the peripheral. */
         data = (uint8_t) usart_recv(USART1);
@@ -153,11 +148,10 @@ void usart1_isr(void) {
             }
         } else {
             /* If a transmission is not happening, save the data on the current 
-             * message and start/restart the end of message timer. */
+             * message and restart the end of message timer. */
             rx_in_progress.buf[rx_in_progress.idx] = data;
             rx_in_progress.idx++;
-            timer_start(EOM_TIMER);
-            led_toggle();
+            timer_restart(EOM_TIMER);
         }
     } else if (usart_get_flag(USART1, USART_FLAG_TXE)) {
         /* Send the next byte, if this function detects that the message is sent 

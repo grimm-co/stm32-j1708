@@ -1,10 +1,14 @@
 #ifndef __J1708_H__
 #define __J1708_H__
 
-/* According to the SAE J1708 standard the timeout for end of a message is 10 
- * "bit times" the baud rate is 9600 the timeout Hz is 9600 / 10 =  960. */
 #define J1708_BAUD 9600
-#define J1708_MSG_TIMEOUT 10
+
+/* According to the SAE J1708 standard the timeout for end of a message is 10 
+ * "bit times" the baud rate is 9600 the timeout Hz is 9600 / 10 =  960.
+ * According to my testing, we need a slightly longer timeout, perhaps the 
+ * timing on the STM32 device is too precise?  Or perhaps I a measuring from the 
+ * wrong point. */
+#define J1708_MSG_TIMEOUT (10 + 1)
 
 /* The priority if this "node", set to lowest (8) */
 #define J1708_NODE_PRIORITY 8

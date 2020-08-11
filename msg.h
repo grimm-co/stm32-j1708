@@ -17,7 +17,7 @@
 typedef struct {
     volatile uint8_t idx;
     volatile uint8_t len;
-    uint8_t buf[HOST_MAX_MSG_SIZE];
+    volatile uint8_t buf[HOST_MAX_MSG_SIZE];
 } msg_t;
 
 #define MSG_INIT \

@@ -27,9 +27,10 @@ ARCH_FLAGS = -DSTM32F1 -mthumb -mcpu=cortex-m3 -msoft-float -mfix-cortex-m3-ldrd
 LDSCRIPT   = libopencm3/lib/stm32/f1/stm32f103x8.ld
 LIBOPENCM3 = libopencm3/lib/libopencm3_stm32f1.a
 OPENCM3_MK = lib/stm32/f1
+OPENOCD_FILES = /usr/share/openocd
 
 # C options
-CFLAGS  += -O3 -std=gnu99 \
+CFLAGS  += -O0 -g -std=gnu99 \
 			-Wall -Wextra -Wimplicit-function-declaration \
 			-Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
 			-Wundef -Wshadow -fno-common -Wstrict-prototypes \
@@ -45,7 +46,7 @@ LDPATH   = libopencm3/lib/
 LDFLAGS += -L$(LDPATH) -T$(LDSCRIPT) -Map $(MAP) --gc-sections
 LDLIBS  += $(LIBOPENCM3) $(LIBC) $(LIBGCC)
 
-.PHONY: firmware clean distclean flash size symbols
+.PHONY: firmware clean distclean flash size symbols openocd
 
 firmware: $(BIN) $(HEX) $(DMP) size
 
@@ -95,3 +96,5 @@ size: $(PROGRAM).elf
 symbols: $(ELF)
 	@$(NM) --demangle --size-sort -S $< | grep -v ' [bB] '
 
+debug: $(ELF) flash
+	(st-util &); gdb-multiarch $< -ex "target remote localhost:4242"

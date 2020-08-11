@@ -16,23 +16,16 @@ int main(void) {
     usb_setup();
 
     while (1) {
-#if 0
-        usart_wait_recv_ready(USART1);
-        msg.buf[0] = (uint8_t) usart_recv(USART1);
-        msg.len = 1;
-        j1708_to_host(&msg);
-#else
-        if (true == j1708_msg_avail()) {
+        if (j1708_msg_avail()) {
             /* Transfer any message received from the J1708 UART to the host */
-            msg.len = j1708_read(msg.buf);
+            msg.len = j1708_read((uint8_t*) msg.buf);
             j1708_to_host(&msg);
         }
-        if (true == usb_msg_avail()) {
+        if (usb_connected() && usb_msg_avail()) {
             /* Send any valid message received from the host to J1708 */
-            msg.len = usb_read(msg.buf);
+            msg.len = usb_read((uint8_t*) msg.buf);
             host_to_j1708(&msg);
         }
-#endif
     }
 
     return 0;

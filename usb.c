@@ -294,6 +294,10 @@ void usb_write(uint8_t *buf, uint8_t len) {
     } while (0 == ret);
 }
 
+bool usb_connected(void) {
+    return usb_ready;
+}
+
 bool usb_msg_avail(void) {
     /* Consider a USB message available if the length is not 0 */
     if (0 != rx_msg.len) {
