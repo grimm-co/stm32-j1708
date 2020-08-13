@@ -1,161 +1,223 @@
 
-#include <stdint.h>
 #include <string.h>
-#include "main.h"
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/timer.h>
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/sync.h>
 #include "j1708.h"
-#include "msg.h"
-#include "led.h"
 #include "timer.h"
 
-static msg_t rx_complete = MSG_INIT;
-static msg_t rx_in_progress = MSG_INIT;
-static msg_t tx_in_progress = MSG_INIT;
+#define J1708_UART USART1
+
+static msg_queue_t j1708_rx_queue;
+static msg_queue_t j1708_tx_queue;
+static volatile msg_t rx_msg;
+static volatile msg_t tx_msg;
+static volatile uint32_t tx_idx;
 
 static void usart_setup(void) {
-    /* Enable GPIOA clock for USART1. */
     rcc_periph_clock_enable(RCC_GPIOA);
-
-    /* Enable clocks for USART1. */
+    rcc_periph_clock_enable(RCC_AFIO);
     rcc_periph_clock_enable(RCC_USART1);
 
     nvic_enable_irq(NVIC_USART1_IRQ);
 
     /* Use the alternate output function so TX is high when idle */
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
-    gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO_USART1_RX);
+    gpio_set_mode(GPIO_BANK_USART1_TX, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+    gpio_set_mode(GPIO_BANK_USART1_RX, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO_USART1_RX);
 
     /* SAE J1708 is 9600 8N1 */
-    usart_set_baudrate(USART1, 9600);
-    usart_set_databits(USART1, 8);
-    usart_set_stopbits(USART1, USART_STOPBITS_1);
-    usart_set_mode(USART1, USART_MODE_TX_RX);
-    usart_set_parity(USART1, USART_PARITY_NONE);
-    usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
+    usart_set_baudrate(J1708_UART, 9600);
+    usart_set_databits(J1708_UART, 8);
+    usart_set_stopbits(J1708_UART, USART_STOPBITS_1);
+    usart_set_mode(J1708_UART, USART_MODE_TX_RX);
+    usart_set_parity(J1708_UART, USART_PARITY_NONE);
+    usart_set_flow_control(J1708_UART, USART_FLOWCONTROL_NONE);
 
-    usart_enable_rx_interrupt(USART1);
+    usart_enable_rx_interrupt(J1708_UART);
 
-    usart_enable(USART1);
+    usart_enable(J1708_UART);
 }
 
-static void j1708_clear_tx_buf(void) {
-    tx_in_progress.len = 0;
-    tx_in_progress.idx = 0;
+static inline void enable_tx(void) {
+    USART_CR1(J1708_UART) |= USART_CR1_TXEIE | USART_CR1_TCIE;
 }
 
-static void j1708_tx_next_byte(void) {
-    if (tx_in_progress.idx < tx_in_progress.len) {
-        usart_send(USART1, tx_in_progress.buf[tx_in_progress.idx++]);
+static inline void disable_tx(void) {
+    USART_CR1(J1708_UART) &= ~(USART_CR1_TXEIE | USART_CR1_TCIE);
+}
 
-        /* Enable the Tx interrupt to send the rest of the message */
-        usart_enable_tx_interrupt(USART1);
+static inline bool tx_in_progress(void) {
+    return tx_msg.len != 0;
+}
+
+static inline bool rx_in_progress(void) {
+    return rx_msg.len != 0;
+}
+
+static bool j1708_tx_next_msg(void) {
+    /* Reset the tx message index. This can be done regardless of if there is 
+     * a new message pending because this function is only called when a new 
+     * message transmit should begin.*/
+    tx_idx = 0;
+
+    /* If there is a tx message queued up, copy it into the tx_msg buffer. */
+    if (msg_pop(&j1708_tx_queue, (msg_t*) &tx_msg)) {
+
+        /* Enable the Tx interrupts and transmit the first byte, this will kick 
+         * off the message transmission. */
+        //usart_send(J1708_UART, tx_msg.buf[0]);
+        USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[0];
+        enable_tx();
     } else {
-        /* message is finished sending, disable Tx */
-        usart_disable_tx_interrupt(USART1);
-        j1708_clear_tx_buf();
-
-        /* Make sure to clear any current TXE interrupt flag */
-        USART_SR(USART1) &= ~USART_CR1_TXEIE;
+        /* There is no new message to send, so set the tx_msg length to 0 to 
+         * indicate Tx is not in progress. */
+        tx_msg.len = 0;
     }
+
+    return tx_in_progress();
 }
 
 static void j1708_eom_timer_handler(void) {
-    led_off();
-    /* The J1708 message is complete, save it */
-    copy_to_msg(&rx_complete, (uint8_t*) rx_in_progress.buf, rx_in_progress.idx);
+    /* If a J1708 message was being received it is complete, save it */
+    if (rx_in_progress()) {
+        msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
 
-    /* Reset the receive in-progress buffer */
-    rx_in_progress.idx = 0;
+        /* Reset the receive in-progress buffer */
+        rx_msg.len = 0;
+    }
+
+    /* There may be a transmit message that was delayed due to the incoming 
+     * message, start message tx now if one is pending. */
+    j1708_tx_next_msg();
 }
 
 static void j1708_col_timer_handler(void) {
-    /* Time to try transmitting our message again, reset the index back to 
-     * 0 and try again. */
-    tx_in_progress.idx = 0;
-    j1708_tx_next_byte();
+    j1708_tx_next_msg();
 }
 
 void j1708_setup(void) {
-    led_setup();
+    msg_queue_init(&j1708_rx_queue);
+    msg_queue_init(&j1708_tx_queue);
+    msg_init((msg_t*) &rx_msg);
+    msg_init((msg_t*) &tx_msg);
+
+    timer_set_handler(EOM_TIMER, j1708_eom_timer_handler);
+    timer_set_handler(COL_TIMER, j1708_col_timer_handler);
+
     timer_setup();
     usart_setup();
 
-    /* Set the timer to count J1708 "bit times" and install our timer ISR 
-     * handler */
-    timer_set_handler(EOM_TIMER, j1708_eom_timer_handler);
-    timer_set_handler(COL_TIMER, j1708_col_timer_handler);
+    //DEBUG
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
+    gpio_clear(GPIOA, GPIO1);
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO3);
+    gpio_clear(GPIOA, GPIO3);
 }
 
 bool j1708_msg_avail(void) {
-    /* Consider a J1708 message available if the length is not 0 */
-    if (0 != rx_complete.len) {
-        return true;
-    } else {
-        return false;
+    return msg_avail(&j1708_rx_queue);
+}
+
+bool j1708_read_msg(msg_t *msg) {
+    return msg_pop(&j1708_rx_queue, msg);
+}
+
+void j1708_write_msg(msg_t *msg) {
+    /* Queue up the message to be sent. */
+    msg_push(&j1708_tx_queue, msg);
+
+    /* If Rx or Tx is currently in progress then do nothing, the next message to 
+     * transmit will get started after the current operation is complete. */
+    if (!tx_in_progress() && !rx_in_progress()) {
+        /* No need to check the return value of this function, we know there is 
+         * at least one message in the queue. */
+        j1708_tx_next_msg();
     }
 }
 
-uint8_t j1708_read(uint8_t *buf) {
-    uint8_t len = copy_from_msg(buf, &rx_complete);
+uint32_t j1708_msg_priority(msg_t *msg) {
+    /* The priority of a J1708 message is determined by the number of leading 
+     * zeros in the message identifier (MID) which is the first byte of the 
+     * message.  To do this quickly use the ARM clz instruction and then 
+     * subtract 24 from the result to account for the uint8_t -> uint32_t 
+     * casting. */
+    uint32_t res, val = msg->buf[0];
+    __asm__ volatile ("clz %0, %1" : "=r" (res) : "r" (val));
 
-    /* Reset the rx_complete buffer before returning */
-    rx_complete.len = 0;
-    return len;
+    /* Now we know the number of leading zeros for this MID, convert that to 
+     * a J1708 "priority" by adding 1 to the result.  So instead of subtracting 
+     * 24 and adding 1 we will just subtract 23 from the result. */
+    return res - 23;
 }
 
-static bool is_tx_in_progress(void) {
-    if ((0 < tx_in_progress.len) && (0 < tx_in_progress.idx)) {
-        return true;
-    } else {
-        return false;
-    }
-}
+static void handle_tx_collision(void) {
+    uint32_t pri;
 
-void j1708_write(uint8_t *buf, uint8_t len) {
-    /* Only allow sending a message if there is not one already in progress */
-    while (0 != tx_in_progress.len);
+    /* Disable Tx */
+    disable_tx();
 
-    /* Also don't allow initiating a message send if there is a message 
-     * currently being received. */
-    while (0 != rx_in_progress.idx);
+    /* Reset the tx index */
+    tx_idx = 0;
 
-    /* Copy the message into the Tx buffer */
-    memcpy((void*) tx_in_progress.buf, (void*) buf, len);
-    tx_in_progress.len = len;
-    tx_in_progress.idx = 0;
-
-    /* Copy the first byte into the UART */
-    j1708_tx_next_byte();
+    /* Configure the collision wait timer delay based on the priority of the 
+     * message. */
+    pri = j1708_msg_priority((msg_t*) &tx_msg);
+    timer_set_wait(TIM2, J1708_COLLISION_WAIT(pri));
+    timer_start(COL_TIMER);
 }
 
 void usart1_isr(void) {
-    uint8_t data, prev_data;
+    uint8_t data;
+    uint32_t cr1, sr;
 
-    if (usart_get_flag(USART1, USART_FLAG_RXNE)) {
-        led_on();
+    cr1 = USART_CR1(J1708_UART);
+    sr = USART_SR(J1708_UART);
 
+    if ((cr1 & USART_CR1_RXNEIE) && (sr & USART_SR_RXNE)) {
+        gpio_toggle(GPIOA, GPIO1);
         /* Retrieve the byte from the peripheral. */
-        data = (uint8_t) usart_recv(USART1);
+        data = (uint8_t) usart_recv(J1708_UART);
 
-        if (true == is_tx_in_progress()) {
-            prev_data = rx_in_progress.buf[rx_in_progress.idx - 1];
-
+        if (tx_in_progress()) {
             /* If the byte we just received does not match what we attempted to 
              * send, a collision occurred, stop the Tx interrupt and start the 
              * collision retry timer. */
-            if (prev_data != data) {
-                usart_disable_tx_interrupt(USART1);
-                timer_start(COL_TIMER);
+            if (data != tx_msg.buf[tx_idx]) {
+                handle_tx_collision();
             }
         } else {
             /* If a transmission is not happening, save the data on the current 
              * message and restart the end of message timer. */
-            rx_in_progress.buf[rx_in_progress.idx] = data;
-            rx_in_progress.idx++;
+            rx_msg.buf[rx_msg.len] = data;
+            rx_msg.len++;
             timer_restart(EOM_TIMER);
         }
-    } else if (usart_get_flag(USART1, USART_FLAG_TXE)) {
-        /* Send the next byte, if this function detects that the message is sent 
-         * then the Tx interrupt will be disabled */
-        j1708_tx_next_byte();
+    }
+
+    if ((cr1 & USART_CR1_TXEIE) && (sr & USART_SR_TXE)) {
+        //DEBUG
+        gpio_toggle(GPIOA, GPIO3);
+
+        /* Increment the tx_msg index and send the next byte.  The index is 
+         * incremented here so that when the received data is validated against 
+         * the transmitted data the tx_idx points to the data last txd. */
+        tx_idx++;
+
+        if (tx_idx < tx_msg.len) {
+            USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[tx_idx];
+        } else {
+            /* Disable the TXE interrupt, we don't need it anymore */
+            USART_CR1(J1708_UART) &= ~USART_CR1_TXEIE;
+        }
+    }
+
+    if ((cr1 & USART_CR1_TCIE) && (sr & USART_SR_TC)) {
+        /* Message send is complete, before sending another message we should 
+         * ensure that EOM time elapses. */
+        disable_tx();
+        timer_restart(EOM_TIMER);
     }
 }

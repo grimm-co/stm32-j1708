@@ -1,5 +1,11 @@
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/usart.h>
+#include <libopencm3/cm3/sync.h>
 #include "main.h"
+#include "led.h"
 #include "j1708.h"
 #include "usb.h"
 #include "msg.h"
@@ -12,19 +18,22 @@ int main(void) {
     msg_t msg;
 
     clock_setup();
+    led_setup();
     j1708_setup();
     usb_setup();
 
     while (1) {
-        if (j1708_msg_avail()) {
-            /* Transfer any message received from the J1708 UART to the host */
-            msg.len = j1708_read((uint8_t*) msg.buf);
-            j1708_to_host(&msg);
+        /* If a J1708 message as been received, use the LED to indicate that 
+         * a message was received and try to send it to a USB host. */
+        if (j1708_read_msg(&msg)) {
+            led_toggle();
+            usb_write_msg(&msg);
         }
-        if (usb_connected() && usb_msg_avail()) {
-            /* Send any valid message received from the host to J1708 */
-            msg.len = usb_read((uint8_t*) msg.buf);
-            host_to_j1708(&msg);
+
+        /* If a USB host is connected, and we did receive a message, send that 
+         * message received from the host to the J1708 bus. */
+        if (usb_connected() && usb_read_msg(&msg)) {
+            j1708_write_msg(&msg);
         }
     }
 

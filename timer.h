@@ -8,6 +8,7 @@
 typedef void (*timer_handler_t)(void);
 
 void timer_setup(void);
+void timer_set_wait(uint32_t timer_peripheral, uint32_t delay);
 void timer_set_handler(uint32_t timer_peripheral, timer_handler_t handler);
 void timer_start(uint32_t timer_peripheral);
 void timer_stop(uint32_t timer_peripheral);

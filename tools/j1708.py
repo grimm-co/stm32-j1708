@@ -57,9 +57,8 @@ class Iface(object):
         self.port = port
         self.speed = speed
 
-        self.serial = None
-        if self.port:
-            self.serial = serial.Serial(port=self.port, baudrate=self.speed)
+        assert self.port
+        self.serial = serial.Serial(port=self.port, baudrate=self.speed)
 
         if som is None:
             self._som = b'$'
@@ -70,6 +69,15 @@ class Iface(object):
         if self.serial:
             self.serial.close()
             self.serial = None
+
+    def send(self, msg):
+        data = self._som + msg + J1708.calc_checksum(msg).to_bytes(1, 'big') + self._eom
+        self.serial.write(data)
+        self.serial.flush()
+
+    def read(self):
+        read_bytes = self.serial.in_waiting
+        return self.serial.read(read_bytes)
 
     def run(self):
         msg = b''

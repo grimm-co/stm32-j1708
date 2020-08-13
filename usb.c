@@ -18,16 +18,21 @@
  */
 
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/desig.h>
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
-#include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/nvic.h>
+#include <libopencm3/cm3/sync.h>
 #include "main.h"
 #include "usb.h"
-#include "j1708.h"
-#include "msg.h"
+
+#define USB_EP_IN  0x01
+#define USB_EP_OUT 0x82
+#define USB_EP_INT 0x83
 
 static const struct usb_device_descriptor dev = {
     .bLength = USB_DT_DEVICE_SIZE,
@@ -36,7 +41,7 @@ static const struct usb_device_descriptor dev = {
     .bDeviceClass = USB_CLASS_CDC,
     .bDeviceSubClass = 0,
     .bDeviceProtocol = 0,
-    .bMaxPacketSize0 = 64,
+    .bMaxPacketSize0 = USB_PACKET_SIZE,
     .idVendor = 0x0483,
     .idProduct = 0x5740,
     .bcdDevice = 0x0200,
@@ -54,7 +59,7 @@ static const struct usb_device_descriptor dev = {
 static const struct usb_endpoint_descriptor comm_endp[] = {{
     .bLength = USB_DT_ENDPOINT_SIZE,
     .bDescriptorType = USB_DT_ENDPOINT,
-    .bEndpointAddress = 0x83,
+    .bEndpointAddress = USB_EP_INT,
     .bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
     .wMaxPacketSize = 16,
     .bInterval = 255,
@@ -63,16 +68,16 @@ static const struct usb_endpoint_descriptor comm_endp[] = {{
 static const struct usb_endpoint_descriptor data_endp[] = {{
     .bLength = USB_DT_ENDPOINT_SIZE,
     .bDescriptorType = USB_DT_ENDPOINT,
-    .bEndpointAddress = 0x01,
+    .bEndpointAddress = USB_EP_IN,
     .bmAttributes = USB_ENDPOINT_ATTR_BULK,
-    .wMaxPacketSize = 64,
+    .wMaxPacketSize = USB_PACKET_SIZE,
     .bInterval = 1,
 }, {
     .bLength = USB_DT_ENDPOINT_SIZE,
     .bDescriptorType = USB_DT_ENDPOINT,
-    .bEndpointAddress = 0x82,
+    .bEndpointAddress = USB_EP_OUT,
     .bmAttributes = USB_ENDPOINT_ATTR_BULK,
-    .wMaxPacketSize = 64,
+    .wMaxPacketSize = USB_PACKET_SIZE,
     .bInterval = 1,
 }};
 
@@ -217,26 +222,28 @@ static void cdcacm_reset(void) {
   usb_ready = false;
 }
 
-static msg_t rx_msg = MSG_INIT;
+static msg_queue_t usb_queue;
 
 static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep) {
-    uint8_t buf[64];
+    uint8_t buf[USB_PACKET_SIZE];
+    uint32_t len;
+    msg_t msg;
 
     /* Get the message from the USB host */
-    int len = usbd_ep_read_packet(usbd_dev, 0x01, buf, 64);
+    len = usbd_ep_read_packet(usbd_dev, USB_EP_IN, buf, USB_PACKET_SIZE);
 
-    if ((0 < len) && (buf[0] == HOST_MSG_START) && (buf[len] == HOST_MSG_END)) {
-        /* If the message has the expected start and end delimiters, copy the 
-         * message into the received buffer. Only save the data between the msg 
-         * delimiters */
-        copy_to_msg(&rx_msg, &buf[1], len - 2);
+    if (is_valid_host_msg(buf, len)) {
+        /* If the message is valid convert it from the host msg format and then 
+         * save it */
+        from_host_msg(&msg, buf, len);
+        msg_push(&usb_queue, &msg);
     }
 }
 
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
-    usbd_ep_setup(usbd_dev, 0x01, USB_ENDPOINT_ATTR_BULK, 64, cdcacm_data_rx_cb);
-    usbd_ep_setup(usbd_dev, 0x82, USB_ENDPOINT_ATTR_BULK, 64, NULL);
-    usbd_ep_setup(usbd_dev, 0x83, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
+    usbd_ep_setup(usbd_dev, USB_EP_IN, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, cdcacm_data_rx_cb);
+    usbd_ep_setup(usbd_dev, USB_EP_OUT, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, NULL);
+    usbd_ep_setup(usbd_dev, USB_EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
 
     usbd_register_control_callback(
                 usbd_dev,
@@ -264,6 +271,8 @@ void usb_lp_can_rx0_isr(void) {
 }
 
 void usb_setup(void) {
+    msg_queue_init(&usb_queue);
+
     /* Needed for USB */
     rcc_periph_clock_enable(RCC_GPIOA);
 
@@ -281,36 +290,69 @@ void usb_setup(void) {
     nvic_enable_irq(NVIC_USB_WAKEUP_IRQ);
 }
 
-void usb_write(uint8_t *buf, uint8_t len) {
-    uint16_t ret;
-
-    /* TODO: may need to copy the msg into a buffer and then transmit from an
-     *       ISR.
-     *
-     * Make sure that the msg gets sent, usbd_ep_write_packet() returns 
-     * 0 when the USB device cannot be written to */
-    do {
-        ret = usbd_ep_write_packet(usbd_dev, 0x82, (void*) buf, len);
-    } while (0 == ret);
-}
-
 bool usb_connected(void) {
     return usb_ready;
 }
 
 bool usb_msg_avail(void) {
-    /* Consider a USB message available if the length is not 0 */
-    if (0 != rx_msg.len) {
-        return true;
-    } else {
-        return false;
-    }
+    return msg_avail(&usb_queue);
 }
 
-uint8_t usb_read(uint8_t *buf) {
-    uint8_t len = copy_from_msg(buf, &rx_msg);
+bool usb_read_msg(msg_t* msg) {
+    return msg_pop(&usb_queue, msg);
+}
 
-    /* Reset the received message buffer before returning */
-    rx_msg.len = 0;
+uint32_t usb_read(uint8_t *buf) {
+    uint32_t len = 0;
+    msg_t *msg;
+
+    LOCK(&usb_queue);
+    msg = msg_pop_nolock(&usb_queue);
+    if (msg != NULL) {
+        memcpy((void*)buf, (void*)msg->buf, msg->len);
+        len = msg->len;
+    }
+    UNLOCK(&usb_queue);
+
     return len;
+}
+
+void usb_write_msg(msg_t* msg) {
+    /* Just ignore the return value, the write probably worked.  And we've got 
+     * no good way if a write was not successful. */
+    (void)usb_write(msg->buf, msg->len);
+}
+
+uint32_t usb_write(uint8_t *buf, uint32_t len) {
+    uint16_t chunk_len, ret;
+    uint32_t written = 0;
+
+    do {
+        if (len > USB_PACKET_SIZE) {
+            chunk_len = USB_PACKET_SIZE;
+        } else {
+            chunk_len = len;
+        }
+        ret = usbd_ep_write_packet(usbd_dev, USB_EP_OUT, (void*) &buf[written], chunk_len);
+
+        if (ret == 0) {
+            return 0;
+        } else {
+            written += ret;
+        }
+    } while (len > written);
+
+    return written;
+}
+
+/* Define _write so stdio.h functions work */
+int _write(int file, char *ptr, int len);
+int _write(int file, char *ptr, int len) {
+    /* 1 == STDOUT */
+    if (file == 1) {
+        return (int) usb_write((uint8_t*) ptr, len);
+    }
+
+    errno = EIO;
+    return -1;
 }

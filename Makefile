@@ -30,7 +30,7 @@ OPENCM3_MK = lib/stm32/f1
 OPENOCD_FILES = /usr/share/openocd
 
 # C options
-CFLAGS  += -O0 -g -std=gnu99 \
+CFLAGS  += -O3 -std=gnu99 \
 			-Wall -Wextra -Wimplicit-function-declaration \
 			-Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
 			-Wundef -Wshadow -fno-common -Wstrict-prototypes \
@@ -72,11 +72,6 @@ $(LIBOPENCM3):
 	git submodule init
 	git submodule update --init
 	CFLAGS="$(CFLAGS)" $(MAKE) -C libopencm3 $(OPENCM3_MK) PREFIX=$(patsubst %,%,$(CROSS)) V=1
-
-flashrom/flashrom:
-	git submodule init
-	git submodule update --init
-	$(MAKE) -C flashrom
 
 clean:
 	rm -f $(OBJS) $(DEPS) $(DOCS) $(ELF) $(HEX) $(BIN) $(MAP) $(DMP)
