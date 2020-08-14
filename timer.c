@@ -40,12 +40,10 @@ void timer_set_wait(uint32_t timer_peripheral, uint32_t delay) {
 void timer_setup(void) {
     rcc_periph_clock_enable(RCC_TIM2);
     nvic_enable_irq(NVIC_TIM2_IRQ);
-    nvic_set_priority(NVIC_TIM2_IRQ, TIMER_IRQ_PRI);
     rcc_periph_reset_pulse(RST_TIM2);
     timer_set_mode(TIM2, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 
     nvic_enable_irq(NVIC_TIM3_IRQ);
-    nvic_set_priority(NVIC_TIM3_IRQ, TIMER_IRQ_PRI);
     rcc_periph_clock_enable(RCC_TIM3);
     rcc_periph_reset_pulse(RST_TIM3);
     timer_set_mode(TIM3, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);

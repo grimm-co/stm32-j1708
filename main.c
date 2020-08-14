@@ -35,10 +35,6 @@ int main(void) {
         if (usb_connected() && usb_read_msg(&msg)) {
             j1708_write_msg(&msg);
         }
-
-#ifndef USB_POLL_INTERRUPTS
-        usb_poll();
-#endif
     }
 
     return 0;

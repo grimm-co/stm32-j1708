@@ -3,15 +3,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <libopencm3/usb/usbd.h>
 #include "msg.h"
-
-/* uncomment to enable driving the USB interface from interrupts rather than 
- * polling */
-//#define USB_POLL_INTERRUPTS 1
 
 /* Largest USB msg that can be sent in one packet */
 #define USB_PACKET_SIZE 64
+#define USB_INT_PACKET_SIZE 16
 
 void usb_setup(void);
 void usb_poll(void);

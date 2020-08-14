@@ -23,6 +23,7 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/desig.h>
+#include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/sync.h>
@@ -32,6 +33,9 @@
 #define USB_EP_IN  0x01
 #define USB_EP_OUT 0x82
 #define USB_EP_INT 0x83
+
+static usbd_device *usbd_ptr = NULL;
+static volatile bool usb_ready = false;
 
 static const struct usb_device_descriptor dev = {
     .bLength = USB_DT_DEVICE_SIZE,
@@ -60,7 +64,7 @@ static const struct usb_endpoint_descriptor comm_endp[] = {{
     .bDescriptorType = USB_DT_ENDPOINT,
     .bEndpointAddress = USB_EP_INT,
     .bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
-    .wMaxPacketSize = 16,
+    .wMaxPacketSize = USB_INT_PACKET_SIZE,
     .bInterval = 255,
 }};
 
@@ -215,8 +219,6 @@ static enum usbd_request_return_codes cdcacm_control_request(
     return USBD_REQ_NOTSUPP;
 }
 
-volatile bool usb_ready = false;
-
 static void cdcacm_reset(void) {
   usb_ready = false;
 }
@@ -242,7 +244,7 @@ static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep) {
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
     usbd_ep_setup(usbd_dev, USB_EP_IN, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, cdcacm_data_rx_cb);
     usbd_ep_setup(usbd_dev, USB_EP_OUT, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, NULL);
-    usbd_ep_setup(usbd_dev, USB_EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, 16, NULL);
+    usbd_ep_setup(usbd_dev, USB_EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, USB_INT_PACKET_SIZE, NULL);
 
     usbd_register_control_callback(
                 usbd_dev,
@@ -255,55 +257,40 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
     }
 }
 
-static usbd_device *usbd_dev;
-
-#ifdef USB_POLL_INTERRUPTS
-void usb_wakeup_isr(void) {
-  usbd_poll(usbd_dev);
+inline void usb_poll(void) {
+    if (usbd_ptr != NULL) {
+        usbd_poll(usbd_ptr);
+    }
 }
 
-void usb_hp_can_tx_isr(void) {
-  usbd_poll(usbd_dev);
+void usb_wakeup_isr(void) {
+    usb_poll();
 }
 
 void usb_lp_can_rx0_isr(void) {
-  usbd_poll(usbd_dev);
+    usb_poll();
 }
-#endif
 
 void usb_setup(void) {
     msg_queue_init(&usb_queue);
 
-    /* Needed for USB */
-    rcc_periph_clock_enable(RCC_GPIOA);
-
     memset((void*) uid_buf, 0, UID_LEN);
     desig_get_unique_id_as_string(uid_buf, UID_LEN);
 
-    usbd_dev = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
+    usbd_ptr = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
                          usb_strings, 3,
                          usbd_control_buffer, sizeof(usbd_control_buffer));
 
-    usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
-    usbd_register_reset_callback(usbd_dev, cdcacm_reset);
+    usbd_register_set_config_callback(usbd_ptr, cdcacm_set_config);
+    usbd_register_reset_callback(usbd_ptr, cdcacm_reset);
 
-#ifdef USB_POLL_INTERRUPTS
-    /* NOTE: Must be called after USB setup since this enables calling usbd_poll(). */
-    nvic_enable_irq(NVIC_USB_HP_CAN_TX_IRQ);
+    /* NOTE: Must be called after USB setup since this enables calling 
+     * usbd_poll(). */
     nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
     nvic_enable_irq(NVIC_USB_WAKEUP_IRQ);
-
-    nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, USB_IRQ_PRI);
-    nvic_set_priority(NVIC_USB_LP_CAN_RX0_IRQ, USB_IRQ_PRI);
-    nvic_set_priority(NVIC_USB_WAKEUP_IRQ, USB_IRQ_PRI);
-#endif
 }
 
-void usb_poll(void) {
-  usbd_poll(usbd_dev);
-}
-
-bool usb_connected(void) {
+inline bool usb_connected(void) {
     return usb_ready;
 }
 
@@ -340,20 +327,22 @@ uint32_t usb_write(uint8_t *buf, uint32_t len) {
     uint16_t chunk_len, ret;
     uint32_t written = 0;
 
-    do {
-        if (len > USB_PACKET_SIZE) {
-            chunk_len = USB_PACKET_SIZE;
-        } else {
-            chunk_len = len;
-        }
-        ret = usbd_ep_write_packet(usbd_dev, USB_EP_OUT, (void*) &buf[written], chunk_len);
+    if (usbd_ptr != NULL && usb_connected()) {
+        do {
+            if (len > USB_PACKET_SIZE) {
+                chunk_len = USB_PACKET_SIZE;
+            } else {
+                chunk_len = len;
+            }
+            ret = usbd_ep_write_packet(usbd_ptr, USB_EP_OUT, (void*) &buf[written], chunk_len);
 
-        if (ret == 0) {
-            return 0;
-        } else {
-            written += ret;
-        }
-    } while (len > written);
+            if (ret == 0) {
+                return 0;
+            } else {
+                written += ret;
+            }
+        } while (len > written);
+    }
 
     return written;
 }

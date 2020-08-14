@@ -24,7 +24,6 @@ static void usart_setup(void) {
     rcc_periph_clock_enable(RCC_USART1);
 
     nvic_enable_irq(NVIC_USART1_IRQ);
-    nvic_set_priority(NVIC_USART1_IRQ, J1708_IRQ_PRI);
 
     /* Use the alternate output function so TX is high when idle */
     gpio_set_mode(GPIO_BANK_USART1_TX, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
