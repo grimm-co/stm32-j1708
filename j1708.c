@@ -6,6 +6,7 @@
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/sync.h>
+#include "main.h"
 #include "j1708.h"
 #include "timer.h"
 
@@ -23,6 +24,7 @@ static void usart_setup(void) {
     rcc_periph_clock_enable(RCC_USART1);
 
     nvic_enable_irq(NVIC_USART1_IRQ);
+    nvic_set_priority(NVIC_USART1_IRQ, J1708_IRQ_PRI);
 
     /* Use the alternate output function so TX is high when idle */
     gpio_set_mode(GPIO_BANK_USART1_TX, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
@@ -36,7 +38,8 @@ static void usart_setup(void) {
     usart_set_parity(J1708_UART, USART_PARITY_NONE);
     usart_set_flow_control(J1708_UART, USART_FLOWCONTROL_NONE);
 
-    usart_enable_rx_interrupt(J1708_UART);
+    /* Enable Rx interrupts */
+    USART_CR1(J1708_UART) |= USART_CR1_RXNEIE;
 
     usart_enable(J1708_UART);
 }
@@ -176,7 +179,27 @@ void usart1_isr(void) {
     cr1 = USART_CR1(J1708_UART);
     sr = USART_SR(J1708_UART);
 
-    if ((cr1 & USART_CR1_RXNEIE) && (sr & USART_SR_RXNE)) {
+    if ((cr1 & USART_CR1_TCIE) && (sr & USART_SR_TC)) {
+        /* Message send is complete, before sending another message we should 
+         * ensure that EOM time elapses. */
+        disable_tx();
+        timer_restart(EOM_TIMER);
+    } else if ((cr1 & USART_CR1_TXEIE) && (sr & USART_SR_TXE)) {
+        //DEBUG
+        gpio_toggle(GPIOA, GPIO3);
+
+        /* Increment the tx_msg index and send the next byte.  The index is 
+         * incremented here so that when the received data is validated against 
+         * the transmitted data the tx_idx points to the data last txd. */
+        tx_idx++;
+
+        if (tx_idx < tx_msg.len) {
+            USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[tx_idx];
+        } else {
+            /* Disable the TXE interrupt, we don't need it anymore */
+            USART_CR1(J1708_UART) &= ~USART_CR1_TXEIE;
+        }
+    } else if ((cr1 & USART_CR1_RXNEIE) && (sr & USART_SR_RXNE)) {
         gpio_toggle(GPIOA, GPIO1);
         /* Retrieve the byte from the peripheral. */
         data = (uint8_t) usart_recv(J1708_UART);
@@ -195,29 +218,5 @@ void usart1_isr(void) {
             rx_msg.len++;
             timer_restart(EOM_TIMER);
         }
-    }
-
-    if ((cr1 & USART_CR1_TXEIE) && (sr & USART_SR_TXE)) {
-        //DEBUG
-        gpio_toggle(GPIOA, GPIO3);
-
-        /* Increment the tx_msg index and send the next byte.  The index is 
-         * incremented here so that when the received data is validated against 
-         * the transmitted data the tx_idx points to the data last txd. */
-        tx_idx++;
-
-        if (tx_idx < tx_msg.len) {
-            USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[tx_idx];
-        } else {
-            /* Disable the TXE interrupt, we don't need it anymore */
-            USART_CR1(J1708_UART) &= ~USART_CR1_TXEIE;
-        }
-    }
-
-    if ((cr1 & USART_CR1_TCIE) && (sr & USART_SR_TC)) {
-        /* Message send is complete, before sending another message we should 
-         * ensure that EOM time elapses. */
-        disable_tx();
-        timer_restart(EOM_TIMER);
     }
 }

@@ -19,8 +19,8 @@ int main(void) {
 
     clock_setup();
     led_setup();
-    j1708_setup();
     usb_setup();
+    j1708_setup();
 
     while (1) {
         /* If a J1708 message as been received, use the LED to indicate that 
@@ -35,6 +35,10 @@ int main(void) {
         if (usb_connected() && usb_read_msg(&msg)) {
             j1708_write_msg(&msg);
         }
+
+#ifndef USB_POLL_INTERRUPTS
+        usb_poll();
+#endif
     }
 
     return 0;

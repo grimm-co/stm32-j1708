@@ -23,7 +23,6 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/desig.h>
-#include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/cm3/sync.h>
@@ -258,6 +257,7 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
 
 static usbd_device *usbd_dev;
 
+#ifdef USB_POLL_INTERRUPTS
 void usb_wakeup_isr(void) {
   usbd_poll(usbd_dev);
 }
@@ -269,6 +269,7 @@ void usb_hp_can_tx_isr(void) {
 void usb_lp_can_rx0_isr(void) {
   usbd_poll(usbd_dev);
 }
+#endif
 
 void usb_setup(void) {
     msg_queue_init(&usb_queue);
@@ -276,6 +277,7 @@ void usb_setup(void) {
     /* Needed for USB */
     rcc_periph_clock_enable(RCC_GPIOA);
 
+    memset((void*) uid_buf, 0, UID_LEN);
     desig_get_unique_id_as_string(uid_buf, UID_LEN);
 
     usbd_dev = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
@@ -285,9 +287,20 @@ void usb_setup(void) {
     usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
     usbd_register_reset_callback(usbd_dev, cdcacm_reset);
 
+#ifdef USB_POLL_INTERRUPTS
     /* NOTE: Must be called after USB setup since this enables calling usbd_poll(). */
+    nvic_enable_irq(NVIC_USB_HP_CAN_TX_IRQ);
     nvic_enable_irq(NVIC_USB_LP_CAN_RX0_IRQ);
     nvic_enable_irq(NVIC_USB_WAKEUP_IRQ);
+
+    nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, USB_IRQ_PRI);
+    nvic_set_priority(NVIC_USB_LP_CAN_RX0_IRQ, USB_IRQ_PRI);
+    nvic_set_priority(NVIC_USB_WAKEUP_IRQ, USB_IRQ_PRI);
+#endif
+}
+
+void usb_poll(void) {
+  usbd_poll(usbd_dev);
 }
 
 bool usb_connected(void) {
