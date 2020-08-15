@@ -43,9 +43,6 @@ static void usart_setup(void) {
     usart_enable_rx_interrupt(J1708_UART);
 
     usart_enable(J1708_UART);
-
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
-    gpio_clear(GPIOA, GPIO1);
 }
 
 static void handle_tx_collision(void) {
@@ -134,8 +131,6 @@ static void j1708_wait_rx_complete(void) {
 void j1708_write_msg(msg_t *msg) {
     uint16_t data;
     uint32_t len;
-
-    gpio_toggle(GPIOA, GPIO1);
 
     len = msg->len;
 
