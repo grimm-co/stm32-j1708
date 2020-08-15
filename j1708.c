@@ -5,18 +5,20 @@
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/cm3/nvic.h>
-#include <libopencm3/cm3/sync.h>
+#include <libopencm3/cm3/cortex.h>
 #include "main.h"
 #include "j1708.h"
 #include "timer.h"
+#include "led.h"
+#include "event.h"
+#include "msg.h"
 
 #define J1708_UART USART1
 
 static msg_queue_t j1708_rx_queue;
-static msg_queue_t j1708_tx_queue;
-static volatile msg_t rx_msg;
-static volatile msg_t tx_msg;
-static volatile uint32_t tx_idx;
+static msg_t rx_msg;
+static msg_t tx_msg;
+static event_t msg_sent_event;
 
 static void usart_setup(void) {
     rcc_periph_clock_enable(RCC_GPIOA);
@@ -38,85 +40,78 @@ static void usart_setup(void) {
     usart_set_flow_control(J1708_UART, USART_FLOWCONTROL_NONE);
 
     /* Enable Rx interrupts */
-    USART_CR1(J1708_UART) |= USART_CR1_RXNEIE;
+    usart_enable_rx_interrupt(J1708_UART);
 
     usart_enable(J1708_UART);
+
+    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
+    gpio_clear(GPIOA, GPIO1);
 }
 
-static inline void enable_tx(void) {
-    USART_CR1(J1708_UART) |= USART_CR1_TXEIE | USART_CR1_TCIE;
-}
+static void handle_tx_collision(void) {
+    uint32_t pri;
 
-static inline void disable_tx(void) {
-    USART_CR1(J1708_UART) &= ~(USART_CR1_TXEIE | USART_CR1_TCIE);
-}
+    /* Indicate that a transmit error has occurred, but don't set the "msg_sent" 
+     * event yet, that will happen after the collision timer expires. */
+    event_putvalue(&msg_sent_event, -1);
 
-static inline bool tx_in_progress(void) {
-    return tx_msg.len != 0;
-}
+    /* Configure the collision wait timer delay based on the priority of the 
+     * message. */
+    pri = j1708_msg_priority((msg_t*) &tx_msg);
+    timer_set_wait(COL_TIMER, J1708_COLLISION_WAIT(pri));
 
-static inline bool rx_in_progress(void) {
-    return rx_msg.len != 0;
-}
-
-static bool j1708_tx_next_msg(void) {
-    /* Reset the tx message index. This can be done regardless of if there is 
-     * a new message pending because this function is only called when a new 
-     * message transmit should begin.*/
-    tx_idx = 0;
-
-    /* If there is a tx message queued up, copy it into the tx_msg buffer. */
-    if (msg_pop(&j1708_tx_queue, (msg_t*) &tx_msg)) {
-
-        /* Enable the Tx interrupts and transmit the first byte, this will kick 
-         * off the message transmission. */
-        //usart_send(J1708_UART, tx_msg.buf[0]);
-        USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[0];
-        enable_tx();
-    } else {
-        /* There is no new message to send, so set the tx_msg length to 0 to 
-         * indicate Tx is not in progress. */
-        tx_msg.len = 0;
-    }
-
-    return tx_in_progress();
+    /* Clear the tx message length to allow receiving messages before the 
+     * collision retry timer expires. */
+    tx_msg.len = 0;
 }
 
 static void j1708_eom_timer_handler(void) {
-    /* If a J1708 message was being received it is complete, save it */
-    if (rx_in_progress()) {
-        msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
+    /* Message complete.  If there was a message being sent and this is the 
+     * received copy of it, ensure that the message lengths match. */
+    if (tx_msg.len > 0) {
+        /* Confirm that the transmitted and received messages match */
+        if ((rx_msg.len == tx_msg.len) 
+            && memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
+            /* signal that message transmission is complete. */
+            event_signal(&msg_sent_event, rx_msg.len);
 
-        /* Reset the receive in-progress buffer */
-        rx_msg.len = 0;
+            /* Clear the transmit buffer length indicating that tx is 
+             * complete. */
+            tx_msg.len = 0;
+        } else {
+            /* If the lengths do not line up, indicate that a transmission error 
+             * occurred. */
+            handle_tx_collision();
+        }
     }
 
-    /* There may be a transmit message that was delayed due to the incoming 
-     * message, start message tx now if one is pending. */
-    j1708_tx_next_msg();
+    msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
+    //led_toggle();
+
+    /* Reset the receive in-progress buffer */
+    rx_msg.len = 0;
 }
 
 static void j1708_col_timer_handler(void) {
-    j1708_tx_next_msg();
+    /* Collision, send -1 indicating tx failure. */
+    event_signal(&msg_sent_event, -1);
+
+    /* Clear the transmit buffer length indicating that tx is 
+     * complete. */
+    tx_msg.len = 0;
 }
 
 void j1708_setup(void) {
     msg_queue_init(&j1708_rx_queue);
-    msg_queue_init(&j1708_tx_queue);
-    msg_init((msg_t*) &rx_msg);
-    msg_init((msg_t*) &tx_msg);
+    msg_init(&rx_msg);
+    msg_init(&tx_msg);
 
     timer_set_handler(EOM_TIMER, j1708_eom_timer_handler);
     timer_set_handler(COL_TIMER, j1708_col_timer_handler);
 
+    led_setup();
     timer_setup();
     usart_setup();
-
-    //DEBUG
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO1);
-    gpio_clear(GPIOA, GPIO1);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO3);
-    gpio_clear(GPIOA, GPIO3);
 }
 
 bool j1708_msg_avail(void) {
@@ -127,19 +122,55 @@ bool j1708_read_msg(msg_t *msg) {
     return msg_pop(&j1708_rx_queue, msg);
 }
 
-void j1708_write_msg(msg_t *msg) {
-    /* Queue up the message to be sent. */
-    msg_push(&j1708_tx_queue, msg);
+static void j1708_wait_rx_complete(void) {
+    bool complete = false;
 
-    /* If Rx or Tx is currently in progress then do nothing, the next message to 
-     * transmit will get started after the current operation is complete. */
-    if (!tx_in_progress() && !rx_in_progress()) {
-        /* No need to check the return value of this function, we know there is 
-         * at least one message in the queue. */
-        j1708_tx_next_msg();
+    while (!complete) {
+        CM_ATOMIC_CONTEXT();
+        complete = !rx_msg.len;
     }
 }
 
+void j1708_write_msg(msg_t *msg) {
+    uint16_t data;
+    uint32_t len;
+
+    gpio_toggle(GPIOA, GPIO1);
+
+    len = msg->len;
+
+    /* Copy the message into the tx_msg buffer so the ISR can validate that the 
+     * bytes received match the sent bytes. */
+    memcpy(tx_msg.buf, msg->buf, len);
+
+    do {
+        /* If a message is being received, wait until it is complete. */
+        j1708_wait_rx_complete();
+
+        /* Set the transmit message length and try to send it. */
+        tx_msg.len = len;
+        event_init(&msg_sent_event);
+        for (uint32_t i = 0; i < len; i++) {
+            data = tx_msg.buf[i];
+            USART_DR(J1708_UART) = data;
+            usart_wait_send_ready(J1708_UART);
+
+            /* If there is a value set in the event already, abort the send. */
+            if (event_nowait(&msg_sent_event) != 0) {
+                break;
+            }
+        }
+    } while (event_wait(&msg_sent_event) > 0);
+}
+
+#if 1
+uint32_t j1708_msg_priority(UNUSED msg_t *msg) {
+    /* My initial understanding of how message priority works in J1708 was 
+     * wrong, it depends on the PID so for now just return the lowest priority 
+     * for all messages. */
+    return 8;
+}
+#else
 uint32_t j1708_msg_priority(msg_t *msg) {
     /* The priority of a J1708 message is determined by the number of leading 
      * zeros in the message identifier (MID) which is the first byte of the 
@@ -154,68 +185,30 @@ uint32_t j1708_msg_priority(msg_t *msg) {
      * 24 and adding 1 we will just subtract 23 from the result. */
     return res - 23;
 }
-
-static void handle_tx_collision(void) {
-    uint32_t pri;
-
-    /* Disable Tx */
-    disable_tx();
-
-    /* Reset the tx index */
-    tx_idx = 0;
-
-    /* Configure the collision wait timer delay based on the priority of the 
-     * message. */
-    pri = j1708_msg_priority((msg_t*) &tx_msg);
-    timer_set_wait(TIM2, J1708_COLLISION_WAIT(pri));
-    timer_start(COL_TIMER);
-}
+#endif
 
 void usart1_isr(void) {
     uint8_t data;
-    uint32_t cr1, sr;
 
-    cr1 = USART_CR1(J1708_UART);
-    sr = USART_SR(J1708_UART);
-
-    if ((cr1 & USART_CR1_TCIE) && (sr & USART_SR_TC)) {
-        /* Message send is complete, before sending another message we should 
-         * ensure that EOM time elapses. */
-        disable_tx();
-        timer_restart(EOM_TIMER);
-    } else if ((cr1 & USART_CR1_TXEIE) && (sr & USART_SR_TXE)) {
-        //DEBUG
-        gpio_toggle(GPIOA, GPIO3);
-
-        /* Increment the tx_msg index and send the next byte.  The index is 
-         * incremented here so that when the received data is validated against 
-         * the transmitted data the tx_idx points to the data last txd. */
-        tx_idx++;
-
-        if (tx_idx < tx_msg.len) {
-            USART_DR(J1708_UART) = (uint16_t) tx_msg.buf[tx_idx];
-        } else {
-            /* Disable the TXE interrupt, we don't need it anymore */
-            USART_CR1(J1708_UART) &= ~USART_CR1_TXEIE;
-        }
-    } else if ((cr1 & USART_CR1_RXNEIE) && (sr & USART_SR_RXNE)) {
-        gpio_toggle(GPIOA, GPIO1);
+    if ((USART_CR1(J1708_UART) & USART_CR1_RXNEIE) &&
+        (USART_SR(J1708_UART) & USART_SR_RXNE)) {
         /* Retrieve the byte from the peripheral. */
-        data = (uint8_t) usart_recv(J1708_UART);
+        data = (uint8_t) (USART_DR(J1708_UART) & 0x00FF);
 
-        if (tx_in_progress()) {
-            /* If the byte we just received does not match what we attempted to 
-             * send, a collision occurred, stop the Tx interrupt and start the 
-             * collision retry timer. */
-            if (data != tx_msg.buf[tx_idx]) {
-                handle_tx_collision();
-            }
-        } else {
-            /* If a transmission is not happening, save the data on the current 
-             * message and restart the end of message timer. */
-            rx_msg.buf[rx_msg.len] = data;
-            rx_msg.len++;
-            timer_restart(EOM_TIMER);
+        /* Regardless of whether or not a transmission is happening, save this 
+         * message. */
+        rx_msg.buf[rx_msg.len++] = data;
+        timer_restart(EOM_TIMER);
+
+        /* Compare the receive buffer against the tx buffer, if the bytes or 
+         * message lengths do not line up then signal a collision.
+         *
+         * Technically the J1708 standard says that only the first byte needs to 
+         * be checked. The full received message will be checked after the 
+         * message is complete, but check the first byte now to allow an early 
+         * abort if necessary. */
+        if ((tx_msg.len > 0) && (rx_msg.len == 1) && (rx_msg.buf[0] != tx_msg.buf[0])) {
+            handle_tx_collision();
         }
     }
 }

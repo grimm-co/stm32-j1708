@@ -1,6 +1,9 @@
 #ifndef __TIMER_H__
 #define __TIMER_H__
 
+#include <stdint.h>
+#include <libopencm3/stm32/timer.h>
+
 /* Mapping the J1708 events we use timers for to the STM32 timer names */
 #define EOM_TIMER TIM2
 #define COL_TIMER TIM3

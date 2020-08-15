@@ -29,13 +29,14 @@
 #include <libopencm3/cm3/sync.h>
 #include "main.h"
 #include "usb.h"
+#include "msg.h"
+#include "j1708.h"
 
 #define USB_EP_IN  0x01
 #define USB_EP_OUT 0x82
 #define USB_EP_INT 0x83
 
 static usbd_device *usbd_ptr = NULL;
-static volatile bool usb_ready = false;
 
 static const struct usb_device_descriptor dev = {
     .bLength = USB_DT_DEVICE_SIZE,
@@ -65,7 +66,7 @@ static const struct usb_endpoint_descriptor comm_endp[] = {{
     .bEndpointAddress = USB_EP_INT,
     .bmAttributes = USB_ENDPOINT_ATTR_INTERRUPT,
     .wMaxPacketSize = USB_INT_PACKET_SIZE,
-    .bInterval = 255,
+    .bInterval = 32,
 }};
 
 static const struct usb_endpoint_descriptor data_endp[] = {{
@@ -185,6 +186,16 @@ static const char *usb_strings[] = {
 /* Buffer to be used for control requests. */
 uint8_t usbd_control_buffer[128];
 
+//  Line config to be returned.
+static const struct usb_cdc_line_coding line_coding = {
+    .dwDTERate = 115200,
+    .bCharFormat = USB_CDC_1_STOP_BITS,
+    .bParityType = USB_CDC_NO_PARITY,
+    .bDataBits = 0x08
+};
+
+#define USB_CDC_REQ_GET_LINE_CODING 0x21
+
 static enum usbd_request_return_codes cdcacm_control_request(
     UNUSED usbd_device *usbd_dev,
     struct usb_setup_data *req,
@@ -199,7 +210,7 @@ static enum usbd_request_return_codes cdcacm_control_request(
          * advertise it in the ACM functional descriptor.
          */
         char local_buf[10];
-        struct usb_cdc_notification *notif = (void *)local_buf;
+        struct usb_cdc_notification *notif = (void*)local_buf;
 
         /* We echo signals back to host as notification. */
         notif->bmRequestType = 0xA1;
@@ -211,38 +222,71 @@ static enum usbd_request_return_codes cdcacm_control_request(
         local_buf[9] = 0;
         return USBD_REQ_HANDLED;
     }
-    case USB_CDC_REQ_SET_LINE_CODING:
+    case USB_CDC_REQ_SET_LINE_CODING: {
         if (*len < sizeof(struct usb_cdc_line_coding))
             return USBD_REQ_NOTSUPP;
         return USBD_REQ_HANDLED;
     }
-    return USBD_REQ_NOTSUPP;
+    case USB_CDC_REQ_GET_LINE_CODING: {
+        if (*len < sizeof(struct usb_cdc_line_coding)) {
+            return USBD_REQ_NOTSUPP;
+        }
+        *buf = (uint8_t *) &line_coding;
+        *len = sizeof(struct usb_cdc_line_coding);
+        return USBD_REQ_HANDLED;
+    }
+    return USBD_REQ_HANDLED;
 }
 
-static void cdcacm_reset(void) {
-  usb_ready = false;
+    return USBD_REQ_NEXT_CALLBACK;
+}
+
+#if 0
+static void cdcacm_sof(void) {
+    msg_t msg, host_msg;
+
+    if (usb_connected()) {
+        /* See if there are any J1708 messages that can be sent to the host. */
+        if (j1708_read_msg(&msg)) {
+            /* Convert the message */
+            to_host_msg(&host_msg, &msg);
+
+            /* Call the write_packet function directly in case we need to start 
+             * handling multi-packet messages. */
+            usbd_ep_write_packet(usbd_ptr, USB_EP_OUT, host_msg.buf, host_msg.len);
+        }
+    }
 }
 
 static msg_queue_t usb_queue;
 
-static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep) {
+UNUSED static void cdcacm_data_rx_cb(usbd_device *usbd_dev, UNUSED uint8_t ep) {
     uint8_t buf[USB_PACKET_SIZE];
     uint32_t len;
-    msg_t msg;
 
-    /* Get the message from the USB host */
+    /* Get the message from the USB host and save it */
+    led_toggle();
     len = usbd_ep_read_packet(usbd_dev, USB_EP_IN, buf, USB_PACKET_SIZE);
+    msg_push_buf(&usb_queue, buf, len);
+}
+#endif
 
-    if (is_valid_host_msg(buf, len)) {
-        /* If the message is valid convert it from the host msg format and then 
-         * save it */
-        from_host_msg(&msg, buf, len);
-        msg_push(&usb_queue, &msg);
-    }
+volatile bool usb_ready;
+
+bool usb_connected(void) {
+    return usb_ready;
+}
+
+static void cdcacm_reset(void) {
+    usb_ready = false;
 }
 
 static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
+#if 0
     usbd_ep_setup(usbd_dev, USB_EP_IN, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, cdcacm_data_rx_cb);
+#else
+    usbd_ep_setup(usbd_dev, USB_EP_IN, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, NULL);
+#endif
     usbd_ep_setup(usbd_dev, USB_EP_OUT, USB_ENDPOINT_ATTR_BULK, USB_PACKET_SIZE, NULL);
     usbd_ep_setup(usbd_dev, USB_EP_INT, USB_ENDPOINT_ATTR_INTERRUPT, USB_INT_PACKET_SIZE, NULL);
 
@@ -251,6 +295,7 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue) {
                 USB_REQ_TYPE_CLASS | USB_REQ_TYPE_INTERFACE,
                 USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT,
                 cdcacm_control_request);
+
 
     if (wValue > 0) {
         usb_ready = true;
@@ -272,9 +317,17 @@ void usb_lp_can_rx0_isr(void) {
 }
 
 void usb_setup(void) {
+#if 0
     msg_queue_init(&usb_queue);
+#endif
+    usb_ready = false;
+    rcc_periph_reset_pulse(RCC_USB);
 
-    memset((void*) uid_buf, 0, UID_LEN);
+    /* USB pullup */
+    //gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
+    //gpio_set(GPIOA, GPIO12);
+
+    memset(uid_buf, 0, UID_LEN);
     desig_get_unique_id_as_string(uid_buf, UID_LEN);
 
     usbd_ptr = usbd_init(&st_usbfs_v1_usb_driver, &dev, &config,
@@ -283,6 +336,9 @@ void usb_setup(void) {
 
     usbd_register_set_config_callback(usbd_ptr, cdcacm_set_config);
     usbd_register_reset_callback(usbd_ptr, cdcacm_reset);
+#if 0
+    usbd_register_sof_callback(usbd_ptr, cdcacm_sof);
+#endif
 
     /* NOTE: Must be called after USB setup since this enables calling 
      * usbd_poll(). */
@@ -290,10 +346,7 @@ void usb_setup(void) {
     nvic_enable_irq(NVIC_USB_WAKEUP_IRQ);
 }
 
-inline bool usb_connected(void) {
-    return usb_ready;
-}
-
+#if 0
 bool usb_msg_avail(void) {
     return msg_avail(&usb_queue);
 }
@@ -301,28 +354,47 @@ bool usb_msg_avail(void) {
 bool usb_read_msg(msg_t* msg) {
     return msg_pop(&usb_queue, msg);
 }
+#else
+/* works better if this buffer is global? */
+static uint8_t usb_rxbuf[USB_PACKET_SIZE];
 
+bool usb_read_msg(msg_t* msg) {
+    uint32_t len;
+
+    /* Just poll the USB interface */
+    len = usbd_ep_read_packet(usbd_ptr, USB_EP_IN, usb_rxbuf, USB_PACKET_SIZE);
+    if (len > 0) {
+        memcpy(msg->buf, usb_rxbuf, len);
+        msg->len = len;
+
+        return true;
+    } else {
+        return false;
+    }
+}
+#endif
+
+#if 0
 uint32_t usb_read(uint8_t *buf) {
     uint32_t len = 0;
     msg_t *msg;
 
-    LOCK(&usb_queue);
+    CM_ATOMIC_CONTEXT();
     msg = msg_pop_nolock(&usb_queue);
     if (msg != NULL) {
-        memcpy((void*)buf, (void*)msg->buf, msg->len);
+        memcpy(buf, msg->buf, msg->len);
         len = msg->len;
     }
-    UNLOCK(&usb_queue);
 
     return len;
 }
+#endif
 
 void usb_write_msg(msg_t* msg) {
-    /* Just ignore the return value, the write probably worked.  And we've got 
-     * no good way if a write was not successful. */
-    (void)usb_write(msg->buf, msg->len);
+    usbd_ep_write_packet(usbd_ptr, USB_EP_OUT, msg->buf, msg->len);
 }
 
+#if 0
 uint32_t usb_write(uint8_t *buf, uint32_t len) {
     uint16_t chunk_len, ret;
     uint32_t written = 0;
@@ -334,7 +406,7 @@ uint32_t usb_write(uint8_t *buf, uint32_t len) {
             } else {
                 chunk_len = len;
             }
-            ret = usbd_ep_write_packet(usbd_ptr, USB_EP_OUT, (void*) &buf[written], chunk_len);
+            ret = usbd_ep_write_packet(usbd_ptr, USB_EP_OUT, &buf[written], chunk_len);
 
             if (ret == 0) {
                 return 0;
@@ -358,3 +430,4 @@ int _write(int file, char *ptr, int len) {
     errno = EIO;
     return -1;
 }
+#endif

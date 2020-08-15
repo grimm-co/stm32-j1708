@@ -53,7 +53,7 @@ void timer_setup(void) {
     /* TIM3: collision wait/retry timer - EOM timeout + (priority * 2)
      * Don't configure this one yet, in theory it is set based on the priority 
      * of the message being sent. */
-    //timer_set_wait(TIM2, msg_priority);
+    //timer_set_wait(TIM3, msg_priority);
 }
 
 void timer_set_handler(uint32_t timer_peripheral, timer_handler_t handler) {

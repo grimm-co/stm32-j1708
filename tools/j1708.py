@@ -5,10 +5,7 @@ import pids
 class J1708(object):
     def __init__(self, msg, checksum=None):
         self.msg = msg
-        if checksum is None:
-            self.checksum = self.calc_checksum()
-        else:
-            self.checksum = checksum
+        self.checksum = checksum
 
         self.mid = None
         self.body = None
@@ -18,8 +15,11 @@ class J1708(object):
     def calc_checksum(cls, msg):
         chksum = 0
         for char in msg:
-            chksum += char
-            chksum &= 0xFF
+            chksum = (chksum + char) & 0xFF
+
+        if chksum != 0:
+            # Determine what the checksum _should_ be
+            chksum = 0x100 - chksum
         return chksum
 
     @classmethod
@@ -34,6 +34,12 @@ class J1708(object):
         # current checksum will add up to 0.
         if cls.calc_checksum(msg) == 0:
             return cls(msg[:-1], msg[-1])
+        else:
+            # The message is invalid, but may be useful for debugging purposes
+            return cls(msg=msg, checksum=None)
+
+    def is_valid(self):
+        return self.checksum is not None
 
     def decode(self):
         if self.mid is None:
@@ -49,7 +55,10 @@ class J1708(object):
             print(f'  {pid["pid"]}: {pid["name"]}\n    {pid["data"].hex()}')
 
     def __str__(self):
-        return f'{self.msg.hex()} ({hex(self.checksum)})'
+        if self.checksum is not None:
+            return f'{self.msg.hex()} ({hex(self.checksum)})'
+        else:
+            return f'{self.msg.hex()} ({self.checksum})'
 
 
 class Iface(object):
@@ -79,7 +88,7 @@ class Iface(object):
         read_bytes = self.serial.in_waiting
         return self.serial.read(read_bytes)
 
-    def run(self):
+    def run(self, decode=True):
         msg = b''
         incoming = False
         while True:
@@ -90,11 +99,13 @@ class Iface(object):
                 msg += char
             elif incoming and char == self._eom:
                 j1708_msg = J1708.make(msg)
-                if j1708_msg is not None:
-                    #print(j1708_msg)
-                    j1708_msg.decode()
+                if j1708_msg.is_valid():
+                    if decode:
+                        j1708_msg.decode()
+                    else:
+                        print(j1708_msg)
                 else:
-                    print(f'INVALID: {msg}')
+                    print(f'INVALID: {j1708_msg}')
 
                 # Clear the message
                 msg = b''

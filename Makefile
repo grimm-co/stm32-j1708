@@ -30,7 +30,7 @@ OPENCM3_MK = lib/stm32/f1
 OPENOCD_FILES = /usr/share/openocd
 
 # C options
-CFLAGS  += -O3 -std=gnu99 \
+CFLAGS  += -O2 -std=gnu99 \
 			-Wall -Wextra -Wimplicit-function-declaration \
 			-Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
 			-Wundef -Wshadow -fno-common -Wstrict-prototypes \
