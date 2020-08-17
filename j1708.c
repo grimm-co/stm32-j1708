@@ -83,7 +83,7 @@ static void j1708_eom_timer_handler(void) {
     }
 
     msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
-    //led_toggle();
+    led_toggle();
 
     /* Reset the receive in-progress buffer */
     rx_msg.len = 0;
