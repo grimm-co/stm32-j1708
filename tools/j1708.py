@@ -50,9 +50,9 @@ class J1708(object):
                 param, body = pids.extract(body)
                 self.pids.append(param)
 
-        print(f'{self.mid["name"]} ({self.mid["mid"]}): {self}')
+        print(f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}')
         for pid in self.pids:
-            print(f'  {pid["pid"]}: {pid["name"]}\n    {pid["data"].hex()}')
+            print(f'  {pid["pid"]}: {pid["name"]}\n    {pid["data"]}')
 
     def __str__(self):
         if self.checksum is not None:
