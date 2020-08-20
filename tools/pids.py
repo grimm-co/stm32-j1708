@@ -4382,7 +4382,7 @@ def extract(data):
         if 'units' in pid_data[pid]:
             value = f'{float(fractional_val)} {pid_data[pid]["units"]} ({val_bytes.hex()})'
         else:
-            value = f'{float(fractional_val):f} ({val_bytes.hex()})'
+            value = f'{float(fractional_val)} ({val_bytes.hex()})'
     else:
         value = val_bytes.hex()
 
