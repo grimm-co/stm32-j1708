@@ -6,7 +6,7 @@ import j1708
 
 def find_device():
     for p in serial.tools.list_ports.grep('0483:5740'): 
-        if 'j1708' in p.manufacturer:
+        if 'j1708' in p.manufacturer.lower():
             return p.device
 
 

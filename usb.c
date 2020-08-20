@@ -178,8 +178,8 @@ static const struct usb_config_descriptor config = {
 static char uid_buf[UID_LEN];
 
 static const char *usb_strings[] = {
-    "GRIMM j1708cat (WIP)",
-    "SAE J1708 Reader",
+    "GRIMM J1708 tool (WIP)",
+    "SAE J1708 tool",
     uid_buf,
 };
 
