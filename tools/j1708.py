@@ -1,8 +1,10 @@
+import struct
 import serial
 import serial.tools.list_ports
 
 import mids
 import pids
+
 
 def find_device():
     """
@@ -93,7 +95,11 @@ class Iface(object):
             self.serial = None
 
     def send(self, msg):
-        data = self._som + msg + J1708.calc_checksum(msg).to_bytes(1, 'big') + self._eom
+        # In theory the struck.pack method is the fastest way to convert an 
+        # integer to a single byte
+        chksum = struct.pack('>B', J1708.calc_checksum(msg))
+        data = self._som + msg + chksum + self._eom
+
         self.serial.write(data)
         self.serial.flush()
 
