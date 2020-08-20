@@ -97,8 +97,11 @@ class Iface(object):
     def send(self, msg):
         # In theory the struck.pack method is the fastest way to convert an 
         # integer to a single byte
-        chksum = struct.pack('>B', J1708.calc_checksum(msg))
-        data = self._som + msg + chksum + self._eom
+        msg_bytes = msg + struct.pack('>B', J1708.calc_checksum(msg))
+
+        # Convert the message into printable hex, then that string back to 
+        # bytes, then wrap that in the msg delimiters and send it
+        data = self._som + msg_bytes.hex().encode() + self._eom
 
         self.serial.write(data)
         self.serial.flush()
