@@ -1,6 +1,19 @@
 import serial
+import serial.tools.list_ports
+
 import mids
 import pids
+
+def find_device():
+    """
+    Identifies if there are any USB devices that match the VID:PID and device
+    strings expected for the J1708 tool.
+    """
+    for p in serial.tools.list_ports.grep('0483:5740'): 
+        if 'j1708' in p.manufacturer.lower():
+            return p.device
+    return None
+
 
 class J1708(object):
     def __init__(self, msg, checksum=None):
