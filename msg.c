@@ -42,7 +42,7 @@ bool msg_pop(msg_queue_t *queue, msg_t *dst) {
 
 bool msg_push_buf(msg_queue_t *queue, uint8_t *buf, uint32_t len) {
     CM_ATOMIC_CONTEXT();
-    return msg_push_buf(queue, buf, len);
+    return msg_push_buf_nolock(queue, buf, len);
 }
 
 bool msg_push_buf_nolock(msg_queue_t *queue, uint8_t *buf, uint32_t len) {
