@@ -10,7 +10,7 @@ def main():
             help='disable J1587 message decoding')
     args = parser.parse_args()
 
-    port = find_device()
+    port = j1708.find_device()
     assert port
     iface = j1708.Iface(port)
     iface.run(not args.no_decode)
