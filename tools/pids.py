@@ -1,6 +1,8 @@
 from fractions import Fraction
 from utils import RangeDict
 
+from j1708_types import *
+
 
 def genBitMask(bits):
     return ~((-1) << bits)
@@ -885,8 +887,8 @@ pid_data = {
         'pid': 44,
         'priority': '5',
         'range': '0 to 255',
-        'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'resolution': 'bitmask',
+        'type': J1708IndicatorLampStatus,
     },
     45: {
         'length': '1 character',
@@ -1102,8 +1104,8 @@ pid_data = {
         'pid': 65,
         'priority': '4',
         'range': '0 to 255',
-        'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'resolution': 'bitmask',
+        'type': J1708BrakeSwitchStatus,
     },
     66: {
         'length': '1 character',
@@ -1153,8 +1155,8 @@ pid_data = {
         'pid': 70,
         'priority': '5',
         'range': '0 to 255',
-        'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'resolution': 'bitmask',
+        'type': J1708ParkingBrakeStatus,
     },
     71: {
         'name': 'idle shutdown timer status',
@@ -1314,8 +1316,8 @@ pid_data = {
         'pid': 85,
         'priority': '3',
         'range': '0 to 255',
-        'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'resolution': 'bitmask',
+        'type': J1708CruiseControlStatus,
     },
     86: {
         'length': '1 character',
@@ -4373,20 +4375,31 @@ def extract(data):
         end = start + data_len
 
     val_bytes = data[start:end]
-    if 'resolution' in pid_data[pid] and \
-            isinstance(pid_data[pid]['resolution'], Fraction) and \
-            val_bytes != b'\xff' * data_len:
-        # First byte swap the data (it's in little endian) and then multiply by 
-        # the resolution
-        res = pid_data[pid]['resolution']
-        le_val = int.from_bytes(val_bytes, 'little')
-        fractional_val = le_val * res
+    value = None
+    if 'resolution' in pid_data[pid]:
+        if isinstance(pid_data[pid]['resolution'], Fraction) and \
+                val_bytes != b'\xff' * data_len:
+            # First byte swap the data (it's in little endian) and then multiply 
+            # by the resolution
+            res = pid_data[pid]['resolution']
+            le_val = int.from_bytes(val_bytes, 'little')
+            fractional_val = le_val * res
 
-        if 'units' in pid_data[pid]:
-            value = f'{float(fractional_val)} {pid_data[pid]["units"]} ({val_bytes.hex()})'
-        else:
-            value = f'{float(fractional_val)} ({val_bytes.hex()})'
-    else:
+            if 'units' in pid_data[pid]:
+                value = f'{float(fractional_val)} {pid_data[pid]["units"]} ({val_bytes.hex()})'
+            else:
+                value = f'{float(fractional_val)} ({val_bytes.hex()})'
+        elif pid_data[pid]['resolution'] == 'bitmask' and \
+                callable(pid_data[pid]['type']):
+            le_val = int.from_bytes(val_bytes, 'little')
+            converted = pid_data[pid]['type'](le_val)
+            parts = []
+            for val in pid_data[pid]['type']:
+                if val & converted or val == converted:
+                    parts.append(str(val))
+            value = f'{val_bytes.hex()}: {", ".join(parts)}'
+
+    if value is None:
         value = val_bytes.hex()
 
     # Return a dictionary representing the PID and then the rest of the message
