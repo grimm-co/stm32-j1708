@@ -4336,22 +4336,25 @@ pid_data = {
 }
 
 def extract(data):
-    if data[:3] == b'\xff\xff\xff':
+    if len(data) >= 4 and data[:3] == b'\xff\xff\xff':
         pid_char = data[3]
         pid = 768 + pid_char
         start = 4
-    elif data[:2] == b'\xff\xff':
+    elif len(data) >= 4 and data[:2] == b'\xff\xff':
         pid_char = data[2]
         pid = 512 + pid_char
         start = 3
-    elif data[:1] == b'\xff':
+    elif len(data) >= 4 and data[:1] == b'\xff':
         pid_char = data[1]
         pid = 256 + pid_char
         start = 2
-    else:
+    elif len(data) >= 1 and data[:1] != b'\xff':
         pid_char = data[0]
         pid = pid_char
         start = 1
+    else:
+        # Invalid
+        return (None, rest)
 
     if pid_char in range(0, 128):
         data_len = 1

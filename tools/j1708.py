@@ -38,7 +38,7 @@ class J1708(object):
         return chksum
 
     @classmethod
-    def make(cls, data):
+    def make(cls, data, ignore_checksum=False):
         # Convert from printable hex to actual bytes
         if isinstance(data, bytes):
             msg = bytes.fromhex(data.decode('latin-1'))
@@ -47,8 +47,10 @@ class J1708(object):
 
         # If the message is valid calculating a checksum over the message and 
         # current checksum will add up to 0.
-        if cls.calc_checksum(msg) == 0:
+        if len(msg) >= 2 and cls.calc_checksum(msg) == 0 and not ignore_checksum:
             return cls(msg[:-1], msg[-1])
+        elif len(msg) >= 2 and cls.calc_checksum(msg) != 0 and ignore_checksum:
+            return cls(msg, None)
         else:
             # The message is invalid, but may be useful for debugging purposes
             return cls(msg=msg, checksum=None)
@@ -63,7 +65,12 @@ class J1708(object):
             body = self.body
             while body != b'':
                 param, body = pids.extract(body)
-                self.pids.append(param)
+                if param:
+                    self.pids.append(param)
+                else:
+                    # This message is invalid
+                    print(f'WARNING: unable to extract valid PID from {body}')
+                    break
 
         print(f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}')
         for pid in self.pids:
@@ -110,7 +117,7 @@ class Iface(object):
         read_bytes = self.serial.in_waiting
         return self.serial.read(read_bytes)
 
-    def run(self, decode=True):
+    def run(self, decode=True, ignore_checksums=False):
         msg = b''
         incoming = False
         while True:
@@ -120,7 +127,7 @@ class Iface(object):
             elif incoming and char != self._eom:
                 msg += char
             elif incoming and char == self._eom:
-                j1708_msg = J1708.make(msg)
+                j1708_msg = J1708.make(msg, ignore_checksums)
                 if j1708_msg.is_valid():
                     if decode:
                         j1708_msg.decode()
