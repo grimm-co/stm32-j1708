@@ -64,7 +64,6 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
         obj = super().__new__(cls, value)
         obj.mask = mask
         obj.is_value_field = is_value_field
-        print(bin(value), hex(mask), is_value_field)
 
         if is_value_field:
             obj._field_offset = get_mask_offset(mask)
@@ -77,7 +76,6 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
                     raise ValueError(errmsg)
         else:
             # The value & mask combination must be unique for each mask group
-            print(list(cls))
             for field in list(cls):
                 field_val = field.value & field.mask
                 val = value & mask
