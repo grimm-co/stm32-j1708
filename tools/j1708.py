@@ -5,6 +5,9 @@ import serial.tools.list_ports
 
 import mids
 import pids
+from sid_consts import *
+from pid_consts import *
+from pid_types import *
 
 
 def find_device():
@@ -16,6 +19,27 @@ def find_device():
         if 'j1708' in p.manufacturer.lower():
             return p.device
     return None
+
+
+def make_dtc_string(mid, dtc):
+    if dtc.active:
+        value_str = 'ACTIVE    '
+    else:
+        value_str = 'INACTIVE  '
+
+    if dtc.sid is not None:
+        sid_str = get_sid_string(mid, dtc.sid)
+        value_str += f'SID {dtc.sid} ({sid_str}): '
+    else:
+        pid_str = get_pid_name(dtc.pid)
+        value_str += f'PID {dtc.pid} ({pid_str}): '
+
+    value_str += dtc.fmi.name
+
+    if dtc.count is not None:
+        value_str += f' ({dtc.count})'
+
+    return value_str
 
 
 class J1708(object):
@@ -75,7 +99,24 @@ class J1708(object):
 
         print(f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}')
         for pid in self.pids:
-            print(f'  {pid["pid"]}: {pid["name"]}\n    {pid["data"]}')
+            pid_str = f'  {pid["pid"]}: {pid["name"]}'
+
+            if isinstance(pid['data'], list):
+                if len(pid['data']) == 0:
+                    pid_str += '\n    NONE'
+                else:
+                    for value in pid['data']:
+                        if isinstance(value, DTC):
+                            dtc_string = make_dtc_string(self.mid['mid'], value)
+                            pid_str += f'\n    {dtc_string}'
+                        else:
+                            pid_str += f'\n    {value}'
+            elif isinstance(pid['data'], DTC):
+                pid_str += f'\n    {make_dtc_string(mid, parsed)}'
+            else:
+                pid_str += f'\n    {pid["data"]}'
+
+            print(pid_str)
 
     def __str__(self):
         if self.checksum is not None:
