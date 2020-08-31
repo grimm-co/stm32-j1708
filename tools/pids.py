@@ -4376,7 +4376,9 @@ def extract(data):
 
     val_bytes = data[start:end]
     value = None
-    if 'resolution' in pid_data[pid]:
+    if val_bytes == b'\xff' * data_len:
+        value = f'{val_bytes.hex().upper()}: Not Available'
+    elif 'resolution' in pid_data[pid]:
         if isinstance(pid_data[pid]['resolution'], Fraction) and \
                 val_bytes != b'\xff' * data_len:
             # First byte swap the data (it's in little endian) and then multiply 
@@ -4386,21 +4388,18 @@ def extract(data):
             fractional_val = le_val * res
 
             if 'units' in pid_data[pid]:
-                value = f'{float(fractional_val)} {pid_data[pid]["units"]} ({val_bytes.hex()})'
+                value = f'{float(fractional_val)} {pid_data[pid]["units"]} ({val_bytes.hex().upper()})'
             else:
-                value = f'{float(fractional_val)} ({val_bytes.hex()})'
+                value = f'{float(fractional_val)} ({val_bytes.hex().upper()})'
         elif pid_data[pid]['resolution'] == 'bitmask' and \
-                callable(pid_data[pid]['type']):
+                hasattr(pid_data[pid]['type'], 'get_set_flags'):
             le_val = int.from_bytes(val_bytes, 'little')
-            converted = pid_data[pid]['type'](le_val)
-            parts = []
-            for val in pid_data[pid]['type']:
-                if val & converted or val == converted:
-                    parts.append(str(val))
-            value = f'{val_bytes.hex()}: {", ".join(parts)}'
+            flags = pid_data[pid]['type'].get_set_flags(le_val)
+            flag_str = "|".join(str(f) for f in flags)
+            value = f'{le_val:X}: {flag_str}'
 
     if value is None:
-        value = val_bytes.hex()
+        value = val_bytes.hex().upper()
 
     # Return a dictionary representing the PID and then the rest of the message
     obj = {

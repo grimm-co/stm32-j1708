@@ -1,3 +1,4 @@
+import re
 import struct
 import serial
 import serial.tools.list_ports
@@ -78,26 +79,33 @@ class J1708(object):
 
     def __str__(self):
         if self.checksum is not None:
-            return f'{self.msg.hex()} ({hex(self.checksum)})'
+            return f'{self.msg.hex().upper()} ({self.checksum:X})'
         else:
-            return f'{self.msg.hex()} ({self.checksum})'
+            return f'{self.msg.hex().upper()} ({self.checksum})'
 
 
 class Iface(object):
-    def __init__(self, port, speed=115200, som=None, eom=None):
+    def __init__(self, port=None, speed=115200, som=None, eom=None):
         self.port = port
         self.speed = speed
-
-        assert self.port
-        self.serial = serial.Serial(port=self.port, baudrate=self.speed)
 
         if som is None:
             self._som = b'$'
         if eom is None:
             self._eom = b'*'
 
+        self.serial = None
+        self.open()
+
     def __del__(self):
-        if self.serial:
+        self.close()
+
+    def open(self):
+        if self.port is not None and self.serial is None:
+            self.serial = serial.Serial(port=self.port, baudrate=self.speed)
+
+    def close(self):
+        if self.serial is not None:
             self.serial.close()
             self.serial = None
 
@@ -139,4 +147,29 @@ class Iface(object):
                 # Clear the message
                 msg = b''
                 incoming = False
+
+    def reparse_log(self, filename, decode=True, ignore_checksums=False):
+        msg_pat = re.compile(r'^[^ ].*\([0-9]+\): ([0-9A-Fa-f]+) \(0x([0-9A-Fa-f]+)\)')
+        with open(filename, 'r') as logfile:
+            for line in logfile:
+                match = msg_pat.match(line)
+                if match:
+                    msgbody, msgchksum = match.groups()
+                    if len(msgchksum) < 2:
+                        msg = msgbody + '0' + msgchksum
+                    else:
+                        msg = msgbody + msgchksum
+
+                    j1708_msg = J1708.make(msg, ignore_checksums)
+                    if j1708_msg.is_valid():
+                        if decode:
+                            j1708_msg.decode()
+                        else:
+                            print(j1708_msg)
+                    else:
+                        print(f'INVALID: {j1708_msg}')
+
+                    # Clear the message
+                    msg = b''
+                    incoming = False
 
