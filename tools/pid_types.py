@@ -249,8 +249,8 @@ class DTCState(StatusGroupEnumAndValue):
     # As always, use the bits that don't matter in the value fields to ensure 
     # that the "value" for each enum is unique.
     COUNT_INCL  = (0b10000000, 0x80)
-    ACTIVE      = (0b01000000, 0x40)
-    INACTIVE    = (0b10111111, 0x40)
+    INACTIVE    = (0b01000000, 0x40)
+    ACTIVE      = (0b10111111, 0x40)
     STANDARD    = (0b00100000, 0x20)
     EXTENDED    = (0b11011111, 0x20)
     SID_INCL    = (0b00010000, 0x10)
