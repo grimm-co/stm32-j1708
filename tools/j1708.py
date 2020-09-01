@@ -1,3 +1,4 @@
+import inspect
 import re
 import struct
 import serial
@@ -21,7 +22,8 @@ def find_device():
     return None
 
 
-def make_dtc_string(mid, dtc):
+def make_dtc_string(mid, value, **kwargs):
+    dtc = value
     if dtc.active:
         value_str = 'ACTIVE    '
     else:
@@ -40,6 +42,88 @@ def make_dtc_string(mid, dtc):
         value_str += f' ({dtc.count})'
 
     return value_str
+
+
+def make_dtc_req_string(mid, value, **kwargs):
+    req = value
+    if req.type == DTC_REQ_TYPE.CLEAR_ALL_DTCS:
+        return f'{self.type.name} {mid["name"]} ({mid["mid"]})'
+    else:
+        if dtcreq.sid is not None:
+            return f'{self.type.name} {mid["name"]} ({mid["mid"]}): SID {req.sid}'
+        else:
+            return f'{self.type.name} {mid["name"]} ({mid["mid"]}): PID {req.pid}'
+
+
+def make_pid_dict_string(value, **kwargs):
+    flags = values.pop('flags')
+    pid_str = ''
+    for field, value in values:
+        pid_str += f'\n    {field}: {value}'
+
+    flag_str = "|".join(str(f) for f in flags)
+    pid_str += f'\n    flags: {flag_str}'
+    return pid_str
+
+
+_whitespace_pat = re.compile(r'^\s+')
+def make_pid_list_string(pid, value, **kwargs):
+    if len(value) == 0:
+        return '\n    NONE'
+    else:
+        prefix_str = f'    {pid["raw"].hex().upper()}: '
+        formatted_values = []
+        for val in value:
+            formattedstr = format_pid_value(**kwargs, pid=pid, value=val)
+            # Drop the leading spaces from the formatted value
+            formatted_values.append(_whitespace_pat.sub('', formattedstr))
+
+        #space_prefix = ' ' * len(prefix_str)
+        #pid_strs = ['\n' + prefix_str + formatted_values[0]]
+        #pid_strs.extend(space_prefix + entry for entry in formatted_values[1:])
+        #return '\n'.join(pid_strs)
+        return '\n' + prefix_str + '|'.join(formatted_values)
+
+
+def make_pid_bytes_string(value, **kwargs):
+    return f'\n    {value.hex().upper()}'
+
+
+pid_formatter_map = {
+    DTC: make_dtc_string,
+    DTCRequest: make_dtc_req_string,
+    dict: make_pid_dict_string,
+    list: make_pid_list_string,
+    bytes: make_pid_bytes_string,
+}
+
+
+def make_flag_string(value, **kwargs):
+    return '\n    ' + str(value)
+
+
+def make_pid_string(value, **kwargs):
+    return f'\n    {value}'
+
+
+def format_pid_value(mid, value, **kwargs):
+    # Some enum types get weird about how they report their type, if the value 
+    # has the mro attribute, get the first value in the list and use that
+    try:
+        mro = inspect.getmro(value)
+        value_type = mro[0]
+    except AttributeError:
+        value_type = type(value)
+
+    # Default to the make_pid_string() to convert pid data
+    try:
+        formatter = pid_formatter_map[value_type]
+    except KeyError:
+        if isinstance(value, J1708FlagEnum):
+            formatter = make_flag_string
+        else:
+            formatter = make_pid_string
+    return formatter(**kwargs, mid=mid, value=value)
 
 
 class J1708(object):
@@ -100,22 +184,7 @@ class J1708(object):
         print(f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}')
         for pid in self.pids:
             pid_str = f'  {pid["pid"]}: {pid["name"]}'
-
-            if isinstance(pid['data'], list):
-                if len(pid['data']) == 0:
-                    pid_str += '\n    NONE'
-                else:
-                    for value in pid['data']:
-                        if isinstance(value, DTC):
-                            dtc_string = make_dtc_string(self.mid['mid'], value)
-                            pid_str += f'\n    {dtc_string}'
-                        else:
-                            pid_str += f'\n    {value}'
-            elif isinstance(pid['data'], DTC):
-                pid_str += f'\n    {make_dtc_string(mid, parsed)}'
-            else:
-                pid_str += f'\n    {pid["data"]}'
-
+            pid_str += format_pid_value(mid=self.mid, pid=pid, value=pid['value'])
             print(pid_str)
 
     def __str__(self):

@@ -4,6 +4,17 @@ from utils import RangeDict
 from pid_types import *
 
 
+def get_pid_name(pid):
+    try:
+        return pids.get(pid)
+    except KeyError:
+        return f'Unknown PID {pid}'
+
+
+def get_pid_info(pid):
+    return pid_info.get(pid, None)
+
+
 pids = RangeDict({
     0: 'Request Parameter',
     range(1, 3): 'Reserved',
@@ -397,7 +408,7 @@ pid_info = {
         'priority': '8',
         'range': '0 to 255',
         'resolution': 'binary',
-        'type': 'unsigned short integer',
+        'type': get_pid_name,
     },
     4: {
         'length': '1 character',
@@ -2418,7 +2429,7 @@ pid_info = {
         'priority': '8',
         'range': '0 to 255',
         'resolution': 'binary',
-        'type': DTC.make,
+        'type': DTC,
     },
     195: {
         'length': '3 characters',
@@ -2428,7 +2439,7 @@ pid_info = {
         'priority': '8',
         'range': '0 to 255',
         'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'type': DTCRequest,
     },
     196: {
         'length': 'variable',
@@ -4258,17 +4269,6 @@ pid_info = {
         'type': 'unsigned short integer (both characters)',
     },
 }
-
-
-def get_pid_name(pid):
-    try:
-        return pids.get(pid)
-    except KeyError:
-        return f'Unknown PID {pid}'
-
-
-def get_pid_info(pid):
-    return pid_info.get(pid, None)
 
 
 __all__ = [

@@ -832,8 +832,6 @@ vehicle_security_sids = RangeDict({
 
 # Tire SIDs (MID = 166, 168, 169, 186)
 tire_sids = RangeDict({
-
-Tire SIDs (MID = 166,
     0: 'Reserved',
     1: 'Operator Control Panel (OCP)',
     2: 'Pneumatic Control Unit (PCU)',

@@ -139,26 +139,11 @@ def extract(data):
             else:
                 value = f'{float(fractional_val)} ({val_bytes.hex().upper()})'
 
-        elif hasattr(pid_info['type'], 'get_values'):
-            le_val = int.from_bytes(val_bytes, 'little')
-            value = f'        {le_val:X}:\n'
-            values = pid_info['type'].get_values(le_val).items()
-            flags = values.pop('flags')
-            for field, value in values:
-                value += f'        {field}: {value}\n'
-            flag_str = "|".join(str(f) for f in flags)
-            value += f'        flags: {flag_str}'
+        elif hasattr(pid_info['type'], 'decode'):
+            value = pid_info['type'].decode(val_bytes)
 
-        elif hasattr(pid_info['type'], 'get_flags'):
-            le_val = int.from_bytes(val_bytes, 'little')
-            flags = pid_info['type'].get_flags(le_val)
-            flag_str = "|".join(str(f) for f in flags)
-            value = f'{le_val:X}: {flag_str}'
-
-        elif callable(pid_info['type']):
-            # Any further special parsing will be done by the top-level message 
-            # parser
-            value = pid_info['type'](val_bytes)
+        else:
+            value = val_bytes
 
     if value is None:
         value = val_bytes.hex().upper()
@@ -167,8 +152,9 @@ def extract(data):
     obj = {
         'pid': pid,
         'name': get_pid_name(pid),
-        'data': value,
-        'raw': data[:end],
+        'value': value,
+        #'raw': data[:end],
+        'raw': val_bytes,
     }
     rest = data[end:]
 

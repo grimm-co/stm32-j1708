@@ -1,4 +1,5 @@
 import enum
+import functools
 
 
 def get_mask_offset(mask):
@@ -16,12 +17,22 @@ class J1708FlagEnum(enum.IntFlag):
         return f'{self.name} ({self.value:X})'
 
     @classmethod
-    def get_flags(cls, value):
-        matches = []
+    def _get_flags(cls, value):
+        flags = []
         for flag in list(cls):
             if flag & value:
-                matches.append(flag)
-        return matches
+                flags.append(flag)
+        return flags
+
+    @classmethod
+    def decode(cls, value):
+        if isinstance(value, bytes):
+            value = int.from_bytes(value, 'little')
+        return cls._get_flags(value)
+
+    @classmethod
+    def encode(cls, *flags):
+        return functools.reduce(lambda x, y: x | y, flags)
 
 
 class StatusGroupEnum(J1708FlagEnum):
@@ -44,17 +55,49 @@ class StatusGroupEnum(J1708FlagEnum):
                 raise ValueError(errmsg)
         return obj
 
-    def __and__(self, other):
-        # Customize the bitwise-and operator to ensure that mask group enums 
-        # only validate the specific section of the value
+    def __in__(self, other):
+        # Customize the "in" operator to ensure that mask group enums only 
+        # validate the specific section of the value.
         if other & self.mask == self.value & self.mask:
             return True
         else:
             return False
 
+    def __and__(self, other):
+        # Customize the and operator to ensure that mask group enums only 
+        # validate the specific section of the value
+        return (other & self.value) & self.mask
+
+    def __or__(self, other):
+        # Customize the bitwise-or operator to ensure that or-ing a status group 
+        # to another value will result in the group mask being cleared correctly
+        value = other
+
+        # Clear the group mask region for this field
+        value &= ~self.mask
+
+        # Set the bits for this field
+        value |= self.value & self.mask
+        return value
+
     def __str__(self):
-        value = self.value & self.mask
-        return f'{self.name} ({value:X} & {self.mask:X})'
+        if hasattr(self, 'mask'):
+            value = self.value & self.mask
+            return f'{self.name} ({value:X} & {self.mask:X})'
+        else:
+            return super().__str__()
+
+    @classmethod
+    def encode(cls, *flags):
+        # Sort the flags by mask and ensure there are no duplicate masks
+        value = {}
+        for flag in flags:
+            if flag.mask not in value:
+                value[flag.mask] = flag.value & flag.mask
+            else:
+                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
+                raise ValueError(errmsg)
+        return functools.reduce(lambda x, y: x | y, value.values())
 
 
 class StatusGroupEnumAndValue(StatusGroupEnum):
@@ -86,47 +129,88 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
                     raise ValueError(errmsg)
         return obj
 
-    def __and__(self, other):
+    def __in__(self, other):
         if self.is_value_field:
-            # Value fields are always present, but for the purposes of the 
-            # bitwise-and operator return false
+            # Value fields are always present, but for the purposes of the "in" 
+            # operator return false
             return False
         else:
-            # Customize the bitwise-and operator to ensure that mask group enums 
-            #     only validate the specific section of the value
-            if other & self.mask == self.value & self.mask:
-                return True
-            else:
-                return False
+            return super().__in__(other)
+
+    def __and__(self, other):
+        if self.is_value_field:
+            # for the bitwise-and operator just mask out the field from the 
+            # value specified
+            return value & self.mask
+        else:
+            return super().__and__(other)
 
     def __str__(self):
-        if self.is_value_field:
+        if hasattr(self, 'is_value_field') and self.is_value_field:
             return f'{self.name} (& {self.mask:X})'
-        else:
+        elif hasattr(self, 'mask'):
             value = self.value & self.mask
             return f'{self.name} ({value:X} & {self.mask:X})'
+        else:
+            return super().__str__()
 
     @classmethod
-    def get_values(cls, value):
+    def _get_flags(cls, value):
+        print(cls, value)
+        print(dir(cls))
+        print(cls.__dict__)
+        matches = []
+        for flag in list(cls):
+            if not flag.is_value_field and \
+                    value & flag.mask == flag.value & flag.mask:
+                matches.append(flag)
+        return matches
+
+    @classmethod
+    def decode(cls, value):
+        if isinstance(value, bytes):
+            value = int.from_bytes(val_bytes, 'little')
+
         obj = {}
         for field in list(cls):
             if field.is_value_field:
                 obj[field.name] = (value & field.mask) >> field._field_offset
 
         assert 'flags' not in obj
-        obj['flags'] = cls.get_flags(value)
+        obj['flags'] = cls._get_flags(value)
         return obj
 
     @classmethod
-    def get_flags(cls, value):
-        matches = []
-        for flag in list(cls):
-            if not flag.is_value_field and flag & value:
-                matches.append(flag)
-        return matches
+    def encode(cls, *flags, **kwargs):
+        # the flags could also be supplied as a dictionary to allow setting 
+        # a non-status field explicitly
+        if isinstance(flags[0], dict):
+            assert not kwargs
+            kwargs = flags[0]
+            flags = flags[1:]
+
+        value = {}
+        # Set any fields specified
+        for name in kwargs:
+            field = cls[kwargs[name]]
+            if flag.mask not in value:
+                value[field.mask] = (kwargs[name] << field._field_offset) & field.mask
+            else:
+                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
+                raise ValueError(errmsg)
+
+        # Set all the flags specified
+        for flag in flags:
+            if flag.mask not in value:
+                value[flag.mask] = flag.value & flag.mask
+            else:
+                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
+                raise ValueError(errmsg)
+
+        return functools.reduce(lambda x, y: x | y, value.values())
 
 
-class FMI(enum.Enum):
+class FMI(enum.IntEnum):
     VALID_ABOVE_NORMAL               = 0
     VALID_BELOW_NORMAL               = 1
     ERRATIC_OR_INCORRECT             = 2
@@ -142,7 +226,7 @@ class FMI(enum.Enum):
     BAD_INTELLIGENT_DEVICE           = 12
     OUT_OF_CALIBRATION               = 13
     SPECIAL_INSTRUCTIONS             = 14
-    RESERVED                         = 14
+    RESERVED                         = 15
 
 
 # PID: 8
@@ -241,7 +325,7 @@ class CruiseControlStatus(J1708FlagEnum):
 
 
 # PID: 194
-class DTCState(StatusGroupEnumAndValue):
+class DTCCode(StatusGroupEnumAndValue):
     # The bit range for the "Value" portion of the PID, the value must be an 
     # integer even though it won't be used.
     FMI         = (0, 0x0F, True)
@@ -258,37 +342,36 @@ class DTCState(StatusGroupEnumAndValue):
 
 
 class DTC(object):
-    def __init__(self, low_byte, code, count=None):
-        code = DTCState.get_values(code)
-        self.code = code
+    def __init__(self, pid_sid_byte, code, count=None):
+        self.code = DTCCode.decode(code)
 
-        if DTCState.EXTENDED in code['flags']:
+        if DTCCode.EXTENDED in self.code['flags']:
             self.ext = True
-            low_byte += 256
+            pid_sid_byte += 256
         else:
             self.ext = False
 
-        if DTCState.SID_INCL in code['flags']:
+        if DTCCode.SID_INCL in self.code['flags']:
             self.pid = None
-            self.sid = low_byte
+            self.sid = pid_sid_byte
         else:
-            self.pid = low_byte
+            self.pid = pid_sid_byte
             self.sid = None
 
-        if DTCState.ACTIVE in code['flags']:
+        if DTCCode.ACTIVE in self.code['flags']:
             self.active = True
         else:
             self.active = False
 
-        if DTCState.COUNT_INCL in code['flags']:
+        if DTCCode.COUNT_INCL in self.code['flags']:
             self.count = count
         else:
             self.count = None
 
-        self.fmi = FMI(code['FMI'])
+        self.fmi = FMI(self.code['FMI'])
 
     @classmethod
-    def make(cls, msg_body):
+    def decode(cls, msg_body):
         dtcs = []
         rest = msg_body
         while rest:
@@ -299,3 +382,58 @@ class DTC(object):
                 rest = rest[3:]
             dtcs.append(new_dtc)
         return dtcs
+
+    @classmethod
+    def encode(cls, *args, **kwargs):
+        raise NotImplementedError
+
+
+# PID: 195
+class DTC_REQ_TYPE(enum.IntEnum):
+    ASCII_DESCRIPTION     = 0
+    CLEAR_SPECIFIC_DTC    = 1
+    CLEAR_ALL_DTCS        = 2
+    MANUFACURER_DIAG_INFO = 3
+
+class DTCRequestCode(StatusGroupEnumAndValue):
+    # The bit range for the "Value" portion of the PID, the value must be an 
+    # integer even though it won't be used.
+    FMI          = (0, 0x0F, True)
+    DTC_REQ_TYPE = (1, 0xC0, True)
+
+    # As always, use the bits that don't matter in the value fields to ensure 
+    # that the "value" for each enum is unique.
+    STANDARD                   = (0b00111111, 0x20)
+    EXTENDED                   = (0b00011111, 0x20)
+    SID_INCL                   = (0b11110000, 0x10)
+    PID_INCL                   = (0b11100000, 0x10)
+
+
+class DTCRequest(object):
+    def __init__(self, mid, pid_sid_byte, code):
+        self.mid = mid
+        self.code = DTCRequestCode.decode(code)
+
+        if DTCRequestCode.EXTENDED in self.code['flags']:
+            self.ext = True
+            pid_sid_byte += 256
+        else:
+            self.ext = False
+
+        if DTCRequestCode.SID_INCL in self.code['flags']:
+            self.pid = None
+            self.sid = pid_sid_byte
+        else:
+            self.pid = pid_sid_byte
+            self.sid = None
+
+        self.fmi = FMI(self.code['FMI'])
+        self.type = DTC_REQ_TYPE(self.code['DTC_REQ_TYPE'])
+
+    @classmethod
+    def decode(cls, msg_body):
+        return cls(rest[0], rest[1], rest[2])
+
+    @classmethod
+    def encode(cls, *args, **kwargs):
+        raise NotImplementedError
