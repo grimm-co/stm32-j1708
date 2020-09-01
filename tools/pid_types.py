@@ -1,5 +1,10 @@
 import enum
 import functools
+import struct
+
+from mids import get_mid_name
+from pid_name import get_pid_name
+from sid_consts import get_sid_string
 
 
 def get_mask_offset(mask):
@@ -14,13 +19,24 @@ class J1708FlagEnum(enum.IntFlag):
         return str(self)
 
     def __str__(self):
-        return f'{self.name} ({self.value:X})'
+        #return f'{self.name} ({self.value:X})'
+        return f'{self.name}'
+
+    def __in__(self, other):
+        if self.value & other == self.value:
+            return True
+        else:
+            return False
+
+    def format(self, **kwargs):
+        return '\n    ' + str(self)
 
     @classmethod
     def _get_flags(cls, value):
         flags = []
         for flag in list(cls):
-            if flag & value:
+            #if flag in value:
+            if flag.__in__(value):
                 flags.append(flag)
         return flags
 
@@ -65,8 +81,12 @@ class StatusGroupEnum(J1708FlagEnum):
 
     def __and__(self, other):
         # Customize the and operator to ensure that mask group enums only 
-        # validate the specific section of the value
-        return (other & self.value) & self.mask
+        # validate the specific section of the value. Only return valid data if 
+        # the field when masked exactly matches the value of this flag.
+        if other & self.mask == self.value & self.mask:
+            return (other & self.value) & self.mask
+        else:
+            return 0
 
     def __or__(self, other):
         # Customize the bitwise-or operator to ensure that or-ing a status group 
@@ -83,7 +103,8 @@ class StatusGroupEnum(J1708FlagEnum):
     def __str__(self):
         if hasattr(self, 'mask'):
             value = self.value & self.mask
-            return f'{self.name} ({value:X} & {self.mask:X})'
+            #return f'{self.name} ({value:X} & {self.mask:X})'
+            return f'{self.name}'
         else:
             return super().__str__()
 
@@ -147,22 +168,21 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
 
     def __str__(self):
         if hasattr(self, 'is_value_field') and self.is_value_field:
-            return f'{self.name} (& {self.mask:X})'
+            #return f'{self.name} (& {self.mask:X})'
+            return f'{self.name}'
         elif hasattr(self, 'mask'):
-            value = self.value & self.mask
-            return f'{self.name} ({value:X} & {self.mask:X})'
+            #value = self.value & self.mask
+            #return f'{self.name} ({value:X} & {self.mask:X})'
+            return f'{self.name}'
         else:
             return super().__str__()
 
     @classmethod
     def _get_flags(cls, value):
-        print(cls, value)
-        print(dir(cls))
-        print(cls.__dict__)
         matches = []
         for flag in list(cls):
-            if not flag.is_value_field and \
-                    value & flag.mask == flag.value & flag.mask:
+            #if not flag.is_value_field and flag in value:
+            if not flag.is_value_field and flag.__in__(value):
                 matches.append(flag)
         return matches
 
@@ -294,19 +314,51 @@ class IndicatorLampStatus(StatusGroupEnum):
     RED_OFF       = (0b11111100, 0x03)
 
 
+# PID: 49
+class ABSControlStatus(StatusGroupEnum):
+    # Use bits that don't matter to ensure that all the "OFF" values are unique
+    OFF_ROAD_ERROR      = (0b10111111, 0xC0)
+    OFF_ROAD_ON         = (0b01111111, 0xC0)
+    OFF_ROAD_OFF        = (0b00111111, 0xC0)
+    RETARDER_ERROR      = (0b11101111, 0x30)
+    RETARDER_ON         = (0b11011111, 0x30)
+    RETARDER_OFF        = (0b11001111, 0x30)
+    BRAKE_CONTROL_ERROR = (0b11111011, 0x0C)
+    BRAKE_CONTROL_ON    = (0b11110111, 0x0C)
+    BRAKE_CONTROL_OFF   = (0b11110011, 0x0C)
+    WARNING_LAMP_ERROR  = (0b11111110, 0x03)
+    WARNING_LAMP_ON     = (0b11111101, 0x03)
+    WARNING_LAMP_OFF    = (0b11111100, 0x03)
+
+
 # PID: 65
 class BrakeSwitchStatus(StatusGroupEnum):
     # Use bits that don't matter to ensure that all the "OFF" values are unique
-    BRAKE_ERROR         = (0b11111011, 0x0C)
-    BRAKE_ON            = (0b11110111, 0x0C)
-    BRAKE_OFF           = (0b11110011, 0x0C)
-    SERVICE_BRAKE_ERROR = (0b11111110, 0x03)
-    SERVICE_BRAKE_ON    = (0b11111101, 0x03)
-    SERVICE_BRAKE_OFF   = (0b11111100, 0x03)
+    ERROR      = (0b11111011, 0x0C)
+    ON         = (0b11110111, 0x0C)
+    OFF        = (0b11110011, 0x0C)
+    LAMP_ERROR = (0b11111110, 0x03)
+    LAMP_ON    = (0b11111101, 0x03)
+    LAMP_OFF   = (0b11111100, 0x03)
 
 
 # PID: 70
 class ParkingBrakeStatus(StatusGroupEnum):
+    ON  = (0b10000000, 0x80)
+    OFF = (0b00000000, 0x80)
+
+
+# PID: 71
+class IdleShutdownTimer(J1708FlagEnum):
+    SHUTDOWN_TIMER_ACTIVE  = (1 << 7)
+    SHUTDOWN_TIMER_ENABLED = (1 << 3)
+    OVERRIDE_ACTIVE        = (1 << 2)
+    ENGINE_IS_SHUTDOWN     = (1 << 1)
+    DRIVER_ALERT_ACTIVE    = (1 << 0)
+
+
+# PID: 83
+class RoadSpeedLimitStatus(StatusGroupEnum):
     ON  = (0b10000000, 0x80)
     OFF = (0b00000000, 0x80)
 
@@ -322,6 +374,74 @@ class CruiseControlStatus(J1708FlagEnum):
     SET    = (1 << 1)
     ON     = (1 << 0)
     OFF    = 0
+
+
+# PID: 89
+class PowerTakeoffStatus(J1708FlagEnum):
+    PTO_ACTIVE    = (1 << 7)
+    CLUTCH        = (1 << 6)
+    BRAKE         = (1 << 5)
+    ACCEL         = (1 << 4)
+    RESUME        = (1 << 3)
+    COAST         = (1 << 2)
+    SET           = (1 << 1)
+    PTO_SWITCH_ON = (1 << 0)
+
+
+# PID: 128
+class ParamRequest(object):
+    def __init__(self, pid, mid):
+        self.pid = pid
+        self.mid = mid
+
+    def format(self, **kwargs):
+        mid_str = get_mid_name(self.mid)
+        pid_str = get_pid_name(self.pid)
+        return f'PID {self.pid} ({pid_str}) FROM {self.mid} ({mid_str})'
+
+    @classmethod
+    def decode(cls, msg_body):
+        return cls(msg_body[0], msg_body[1])
+
+    @classmethod
+    def encode(cls, *args, **kwargs):
+        return struct.pack('>BB', self.pid, self.mid)
+
+
+# PID: 151
+class ATCControlStatus(StatusGroupEnum):
+    SPINOUT_ERROR         = (0b1011111111111111, 0xC000)
+    SPINOUT_ACTIVE        = (0b0111111111111111, 0xC000)
+    SPINOUT_INACTIVE      = (0b0011111111111111, 0xC000)
+    ATC_ENGINE_CTRL_ERROR = (0b0010111111111111, 0x3000)
+    ATC_ENGINE_CTRL_ON    = (0b0001111111111111, 0x3000)
+    ATC_ENGINE_CTRL_OFF   = (0b0000111111111111, 0x3000)
+    ATC_BRAKES_CTRL_ERROR = (0b0000101111111111, 0x0C00)
+    ATC_BRAKES_CTRL_ON    = (0b0000011111111111, 0x0C00)
+    ATC_BRAKES_CTRL_OFF   = (0b0000001111111111, 0x0C00)
+    LAMP_ERROR            = (0b0000001011111111, 0x0300)
+    LAMP_ON               = (0b0000000111111111, 0x0300)
+    LAMP_OFF              = (0b0000000011111111, 0x0300)
+    VDC_ENGINE_CTRL_ERROR = (0b0000000000101111, 0x0030)
+    VDC_ENGINE_CTRL_ON    = (0b0000000000011111, 0x0030)
+    VDC_ENGINE_CTRL_OFF   = (0b0000000000001111, 0x0030)
+    VDC_BRAKES_CTRL_ERROR = (0b0000000000001011, 0x000C)
+    VDC_BRAKES_CTRL_ON    = (0b0000000000000111, 0x000C)
+    VDC_BRAKES_CTRL_OFF   = (0b0000000000000011, 0x000C)
+    ATC_MUD_SNOW_ERROR    = (0b0000000000000010, 0x0003)
+    ATC_MUD_SNOW_ON       = (0b0000000000000001, 0x0003)
+    ATC_MUD_SNOW_OFF      = (0b0000000000000000, 0x0003)
+
+
+# PID: 183
+class EngineRetarderStatus(StatusGroupEnum):
+    ON          = (0b10000000, 0x80)
+    OFF         = (0b00000000, 0x80)
+    CYL8_ACTIVE = (0b00010000, 0x10)
+    CYL6_ACTIVE = (0b00001000, 0x08)
+    CYL4_ACTIVE = (0b00000100, 0x04)
+    CYL3_ACTIVE = (0b00000010, 0x02)
+    CYL2_ACTIVE = (0b00000001, 0x01)
 
 
 # PID: 194
@@ -370,6 +490,22 @@ class DTC(object):
 
         self.fmi = FMI(self.code['FMI'])
 
+    def format(self, mid, **kwargs):
+        if self.active:
+            value_str = 'ACTIVE    '
+        else:
+            value_str = 'INACTIVE  '
+        if self.sid is not None:
+            sid_str = get_sid_string(mid, self.sid)
+            value_str += f'SID {self.sid} ({sid_str}): '
+        else:
+            pid_str = get_pid_name(self.pid)
+            value_str += f'PID {self.pid} ({pid_str}): '
+        value_str += self.fmi.name
+        if self.count is not None:
+            value_str += f' ({self.count})'
+        return value_str
+
     @classmethod
     def decode(cls, msg_body):
         dtcs = []
@@ -394,6 +530,7 @@ class DTC_REQ_TYPE(enum.IntEnum):
     CLEAR_SPECIFIC_DTC    = 1
     CLEAR_ALL_DTCS        = 2
     MANUFACURER_DIAG_INFO = 3
+
 
 class DTCRequestCode(StatusGroupEnumAndValue):
     # The bit range for the "Value" portion of the PID, the value must be an 
@@ -430,9 +567,21 @@ class DTCRequest(object):
         self.fmi = FMI(self.code['FMI'])
         self.type = DTC_REQ_TYPE(self.code['DTC_REQ_TYPE'])
 
+    def format(self, **kwargs):
+        mid_str = get_mid_name(self.mid)
+        if self.type == DTC_REQ_TYPE.CLEAR_ALL_DTCS:
+            return f'{self.type.name} {mid_str} ({self.mid})'
+        else:
+            if self.sid is not None:
+                sid_str = get_sid_string(mid, self.sid)
+                return f'{self.type.name} {mid_str} ({self.mid}): SID {self.sid} ({sid_str})'
+            else:
+                pid_str = get_pid_name(self.pid)
+                return f'{self.type.name} {mid_str} ({self.mid}): PID {self.pid} ({pid_str})'
+
     @classmethod
     def decode(cls, msg_body):
-        return cls(rest[0], rest[1], rest[2])
+        return cls(msg_body[0], msg_body[1], msg_body[2])
 
     @classmethod
     def encode(cls, *args, **kwargs):

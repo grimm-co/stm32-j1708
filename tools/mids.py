@@ -153,12 +153,26 @@ msgs = RangeDict({
     255: 'Reserved',
 })
 
+
+def get_mid_name(mid):
+    try:
+        return msgs.get(mid)
+    except KeyError:
+        return f'Unknown MID {mid}'
+
+
 def extract(data):
     mid = data[0]
 
     obj = {
         'mid': mid,
-        'name': msgs[mid]
+        'name': get_mid_name(mid)
     }
 
     return (obj, data[1:])
+
+
+__all__ = [
+    'extract',
+    'get_mid_name',
+]

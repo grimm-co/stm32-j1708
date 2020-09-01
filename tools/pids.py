@@ -1,7 +1,8 @@
 from fractions import Fraction
 
-from pid_consts import *
 from pid_types import *
+from pid_name import *
+from pid_info import *
 
 
 def genBitMask(bits):

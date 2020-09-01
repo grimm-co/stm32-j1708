@@ -7,7 +7,6 @@ import serial.tools.list_ports
 import mids
 import pids
 from sid_consts import *
-from pid_consts import *
 from pid_types import *
 
 
@@ -22,55 +21,35 @@ def find_device():
     return None
 
 
-def make_dtc_string(mid, value, **kwargs):
-    dtc = value
-    if dtc.active:
-        value_str = 'ACTIVE    '
-    else:
-        value_str = 'INACTIVE  '
-
-    if dtc.sid is not None:
-        sid_str = get_sid_string(mid, dtc.sid)
-        value_str += f'SID {dtc.sid} ({sid_str}): '
-    else:
-        pid_str = get_pid_name(dtc.pid)
-        value_str += f'PID {dtc.pid} ({pid_str}): '
-
-    value_str += dtc.fmi.name
-
-    if dtc.count is not None:
-        value_str += f' ({dtc.count})'
-
-    return value_str
-
-
-def make_dtc_req_string(mid, value, **kwargs):
-    req = value
-    if req.type == DTC_REQ_TYPE.CLEAR_ALL_DTCS:
-        return f'{self.type.name} {mid["name"]} ({mid["mid"]})'
-    else:
-        if dtcreq.sid is not None:
-            return f'{self.type.name} {mid["name"]} ({mid["mid"]}): SID {req.sid}'
-        else:
-            return f'{self.type.name} {mid["name"]} ({mid["mid"]}): PID {req.pid}'
-
-
 def make_pid_dict_string(value, **kwargs):
     flags = values.pop('flags')
+
     pid_str = ''
     for field, value in values:
         pid_str += f'\n    {field}: {value}'
 
-    flag_str = "|".join(str(f) for f in flags)
-    pid_str += f'\n    flags: {flag_str}'
+    if flags:
+        #if all(f.name.endswith('_OFF') for f in flags):
+        #    pid_str += '\n    flags: NONE'
+        #else:
+        flag_str = ', '.join(str(f) for f in flags)
+        pid_str += f'\n    flags: {flag_str}'
     return pid_str
 
 
 _whitespace_pat = re.compile(r'^\s+')
 def make_pid_list_string(pid, value, **kwargs):
     if len(value) == 0:
-        return '\n    NONE'
+        return f'\n    {pid["raw"].hex().upper()}: NONE'
     else:
+        # Special case: If this is a list of flags, and all of the flags end in 
+        # '_OFF' just display the flag values as "NONE"
+        #try:
+        #    if all(f.name.endswith('_OFF') for f in value):
+        #        return f'    {pid["raw"].hex().upper()}: NONE'
+        #except AttributeError:
+        #    pass
+
         prefix_str = f'    {pid["raw"].hex().upper()}: '
         formatted_values = []
         for val in value:
@@ -82,48 +61,28 @@ def make_pid_list_string(pid, value, **kwargs):
         #pid_strs = ['\n' + prefix_str + formatted_values[0]]
         #pid_strs.extend(space_prefix + entry for entry in formatted_values[1:])
         #return '\n'.join(pid_strs)
-        return '\n' + prefix_str + '|'.join(formatted_values)
+        return '\n' + prefix_str + ', '.join(formatted_values)
 
 
 def make_pid_bytes_string(value, **kwargs):
     return f'\n    {value.hex().upper()}'
 
 
-pid_formatter_map = {
-    DTC: make_dtc_string,
-    DTCRequest: make_dtc_req_string,
-    dict: make_pid_dict_string,
-    list: make_pid_list_string,
-    bytes: make_pid_bytes_string,
-}
-
-
-def make_flag_string(value, **kwargs):
-    return '\n    ' + str(value)
-
-
 def make_pid_string(value, **kwargs):
     return f'\n    {value}'
 
 
-def format_pid_value(mid, value, **kwargs):
-    # Some enum types get weird about how they report their type, if the value 
-    # has the mro attribute, get the first value in the list and use that
-    try:
-        mro = inspect.getmro(value)
-        value_type = mro[0]
-    except AttributeError:
-        value_type = type(value)
-
-    # Default to the make_pid_string() to convert pid data
-    try:
-        formatter = pid_formatter_map[value_type]
-    except KeyError:
-        if isinstance(value, J1708FlagEnum):
-            formatter = make_flag_string
-        else:
-            formatter = make_pid_string
-    return formatter(**kwargs, mid=mid, value=value)
+def format_pid_value(value, **kwargs):
+    if hasattr(value, 'format'):
+        return '\n    ' + value.format(**kwargs)
+    elif isinstance(value, dict):
+        return make_pid_dict_string(**kwargs, value=value)
+    elif isinstance(value, list):
+        return make_pid_list_string(**kwargs, value=value)
+    elif isinstance(value, bytes):
+        return make_pid_bytes_string(**kwargs, value=value)
+    else:
+        return make_pid_string(**kwargs, value=value)
 
 
 class J1708(object):
@@ -259,7 +218,7 @@ class Iface(object):
                 incoming = False
 
     def reparse_log(self, filename, decode=True, ignore_checksums=False):
-        msg_pat = re.compile(r'^[^ ].*\([0-9]+\): ([0-9A-Fa-f]+) \(0x([0-9A-Fa-f]+)\)')
+        msg_pat = re.compile(r'^[^ ].*\([0-9]+\): ([0-9A-Fa-f]+) \(([0-9A-Fa-f]+)\)')
         with open(filename, 'r') as logfile:
             for line in logfile:
                 match = msg_pat.match(line)
