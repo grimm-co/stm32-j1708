@@ -358,1558 +358,804 @@ engine_sids = RangeDict({
     394: 'Particulate Trap Active Regeneration Inhibited Due to Temporary System Lockout',
     395: 'Engine Air Shutoff Command Status',
     396: 'Aftertreatment 1 Ignition Transformer Secondary Output',
-range(397, 511): 'Reserved',
+    range(397, 511): 'Reserved',
 })
 
 
 # Transmission SIDs(MID = 130, 176, 223)
-transmission_sids = {}
+transmission_sids = RangeDict({
+    0: 'Reserved',
+    1: 'C1 Solenoid Valve',
+    2: 'C2 Solenoid Valve',
+    3: 'C3 Solenoid Valve',
+    4: 'C4 Solenoid Valve',
+    5: 'C5 Solenoid Valve',
+    6: 'C6 Solenoid Valve',
+    7: 'Lockup Solenoid Valve',
+    8: 'Forward Solenoid Valve',
+    9: 'Low Signal Solenoid Valve',
+    10: 'Retarder Enable Solenoid Valve',
+    11: 'Retarder Modulation Solenoid Valve',
+    12: 'Retarder Response Solenoid Valve',
+    13: 'Differential Lock Solenoid Valve',
+    14: 'Engine/Transmission Match',
+    15: 'Retarder Modulation Request Sensor',
+    16: 'Neutral Start Output',
+    17: 'Turbine Speed Sensor',
+    18: 'Primary Shift Selector',
+    19: 'Secondary Shift Selector',
+    20: 'Special Function Inputs',
+    21: 'C1 Clutch Pressure Indicator',
+    22: 'C2 Clutch Pressure Indicator',
+    23: 'C3 Clutch Pressure Indicator',
+    24: 'C4 Clutch Pressure Indicator',
+    25: 'C5 Clutch Pressure Indicator',
+    26: 'C6 Clutch Pressure Indicator',
+    27: 'Lockup Clutch Pressure Indicator',
+    28: 'Forward Range Pressure Indicator',
+    29: 'Neutral Range Pressure Indicator',
+    30: 'Reverse Range Pressure Indicator',
+    31: 'Retarder Response System Pressure Indicator',
+    32: 'Differential Lock Clutch Pressure Indicator',
+    33: 'Multiple Pressure Indicators',
+    34: 'Reverse Switch',
+    35: 'Range High Actuator',
+    36: 'Range Low Actuator',
+    37: 'Splitter Direct Actuator',
+    38: 'Splitter Indirect Actuator',
+    39: 'Shift Finger Rail Actuator 1',
+    40: 'Shift Finger Gear Actuator 1',
+    41: 'Upshift Request Switch',
+    42: 'Downshift Request Switch',
+    43: 'Torque Converter Interrupt Actuator',
+    44: 'Torque Converter Lockup Actuator',
+    45: 'Range High Indicator',
+    46: 'Range Low Indicator',
+    47: 'Shift Finger Neutral Indicator',
+    48: 'Shift Finger Engagement Indicator',
+    49: 'Shift Finger Center Rail Indicator',
+    50: 'Shift Finger Rail Actuator 2',
+    51: 'Shift Finger Gear Actuator 2',
+    52: 'Hydraulic System',
+    53: 'Defuel Actuator',
+    54: 'Inertia Brake Actuator',
+    55: 'Clutch Actuator',
+    56: 'Auxiliary Range Mechanical System',
+    57: 'Shift Console Data Link',
+    58: 'Main Box Shift Engagement System',
+    59: 'Main Box Rail Selection System',
+    60: 'Main Box Shift Neutralization System',
+    61: 'Auxiliary Splitter Mechanical System',
+    62: 'Transmission Controller Power Relay',
+    63: 'Output Shaft Speed Sensor',
+    64: 'Throttle Position Device',
+    range(65, 150): 'Reserved',
+})
 
 
 # Brake SIDs (MIDs = 136, 137, 138, 139, 246, 247)
-brake_sids = {}
+brake_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Wheel Sensor ABS Axle 1 Left',
+    2: 'Wheel Sensor ABS Axle 1 Right',
+    3: 'Wheel Sensor ABS Axle 2 Left',
+    4: 'Wheel Sensor ABS Axle 2 Right',
+    5: 'Wheel Sensor ABS Axle 3 Left',
+    6: 'Wheel Sensor ABS Axle 3 Right',
+    7: 'Pressure Modulation Valve ABS Axle 1 Left',
+    8: 'Pressure Modulation Valve ABS Axle 1 Right',
+    9: 'Pressure Modulation Valve ABS Axle 2 Left',
+    10: 'Pressure Modulation Valve ABS Axle 2 Right',
+    11: 'Pressure Modulation Valve ABS Axle 3 Left',
+    12: 'Pressure Modulation Valve ABS Axle 3 Right',
+    13: 'Retarder Control Relay',
+    14: 'Relay Diagonal 1',
+    15: 'Relay Diagonal 2',
+    16: 'Mode Switch ABS',
+    17: 'Mode Switch ASR',
+    18: 'DIF 1—ASR Valve',
+    19: 'DIF 2—ASR Valve',
+    20: 'Pneumatic Engine Control',
+    21: 'Electronic Engine Control (Servomotor)',
+    22: 'Speed Signal Input',
+    23: 'Tractor ABS Warning Light Bulb',
+    24: 'ASR Light Bulb',
+    25: 'Wheel Sensor, ABS Axle 1 Average',
+    26: 'Wheel Sensor, ABS Axle 2 Average',
+    27: 'Wheel Sensor, ABS Axle 3 Average',
+    28: 'Pressure Modulator, Drive Axle Relay Valve',
+    29: 'Pressure Transducer, Drive Axle Relay Valve',
+    30: 'Master Control Relay',
+    31: 'Trailer Brake Slack Out of Adjustment Forward Axle Left',
+    32: 'Trailer Brake Slack Out of Adjustment Forward axle Right',
+    33: 'Trailer Brake Slack Out of Adjustment Rear Axle Left',
+    34: 'Trailer Brake Slack Out of Adjustment Rear Axle Right',
+    35: 'Tractor Brake Slack Out of Adjustment Axle 1 Left',
+    36: 'Tractor Brake Slack Out of Adjustment Axle 1 Right',
+    37: 'Tractor Brake Slack Out of Adjustment Axle 2 Left',
+    38: 'Tractor Brake Slack Out of Adjustment Axle 2 Right',
+    39: 'Tractor Brake Slack Out of Adjustment Axle 3 Left',
+    40: 'Tractor Brake Slack Out of Adjustment Axle 3 Right',
+    41: 'Ride Height Relay',
+    42: 'Hold Modulator Valve Solenoid Axle 1 Left',
+    43: 'Hold Modulator Valve Solenoid Axle 1 Right',
+    44: 'Hold Modulator Valve Solenoid Axle 2 Left',
+    45: 'Hold Modulator Valve Solenoid Axle 2 Right',
+    46: 'Hold Modulator Valve Solenoid Axle 3 Left',
+    47: 'Hold Modulator Valve Solenoid Axle 3 Right',
+    48: 'Dump Modulator Valve Solenoid Axle 1 Left',
+    49: 'Dump Modulator Valve Solenoid Axle 1 Right',
+    50: 'Dump Modulator Valve Solenoid Axle 2 Left',
+    51: 'Dump Modulator Valve Solenoid Axle 2 Right',
+    52: 'Dump Modulator Valve Solenoid Axle 3 Left',
+    53: 'Dump Modulator Valve Solenoid Axle 3 Right',
+    54: 'Hydraulic Pump Motor',
+    55: 'Brake Light Switch 1',
+    56: 'Brake Light Switch 2',
+    57: 'Electronic Pressure Control, Axle 1',
+    58: 'Pneumatic Back-up Pressure Control, Axle 1',
+    59: 'Brake Pressure Sensing, Axle 1',
+    60: 'Electronic Pressure Control, Axle 2',
+    61: 'Pneumatic Back-up Pressure Control, Axle 2',
+    62: 'Brake Pressure Sensing, Axle 2',
+    63: 'Electronic Pressure Control, Axle 3',
+    64: 'Pneumatic Back-up Pressure Control, Axle 3',
+    65: 'Brake Pressure Sensing, Axle 3',
+    66: 'Electronic Pressure Control, Trailer Control',
+    67: 'Pneumatic Back-up Pressure Control, Trailer Control',
+    68: 'Brake Pressure Sensing, Trailer Control',
+    69: 'Axle Load Sensor',
+    70: 'Lining Wear Sensor, Axle 1 Left',
+    71: 'Lining Wear Sensor, Axle 1 Right',
+    72: 'Lining Wear Sensor, Axle 2 Left',
+    73: 'Lining Wear Sensor, Axle 2 Right',
+    74: 'Lining Wear Sensor, Axle 3 Left',
+    75: 'Lining Wear Sensor, Axle 3 Right',
+    76: 'Brake Signal Transmitter',
+    77: 'Brake Signal Sensor 1',
+    78: 'Brake Signal Sensor 2',
+    79: 'Tire Dimension Supervision',
+    80: 'Vehicle Deceleration Control',
+    81: 'Trailer ABS Warning Light Bulb',
+    82: 'Brake Torque Output Axle 1 Left',
+    83: 'Brake Torque Output Axle 1 Right',
+    84: 'Brake Torque Output Axle 2 Left',
+    85: 'Brake Torque Output Axle 2 Right',
+    86: 'Brake Torque Output Axle 3 Left',
+    87: 'Brake Torque Output Axle 3 Right',
+    88: 'Vehicle Dynamic Stability Control System (VDC)',
+    89: 'Steering Angle Sensor',
+    90: 'Voltage Supply for Stability Control System',
+    91: 'Brake Lining Display',
+    92: 'Pressure Limitation Valve',
+    93: 'Auxiliary Valve',
+    94: 'Hill holder System',
+    95: 'Voltage Supply, Lining Wear Sensors, Axle 1',
+    96: 'Voltage Supply, Lining Wear Sensors, Axle 2',
+    97: 'Voltage Supply, Lining Wear Sensors, Axle 3',
+    98: 'Reference Ground Connection',
+    99: 'Lateral Accelerometer',
+    100: 'Brake Light Relay',
+    101: 'Brake Warning Light Bulb',
+    102: 'Differential Lock control output (transfer case)',
+    103: 'Yaw Rate Sensor',
+    104: 'Service Odometer',
+    range(105, 150): 'Reserved',
+})
 
 
 # Instrument Panel SIDs (MID = 140, 234)
-instrument_panel_sids = {}
+instrument_panel_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Left Fuel Level Sensor',
+    2: 'Right Fuel Level Sensor',
+    3: 'Fuel Feed Rate Sensor',
+    4: 'Fuel Return Rate Sensor',
+    5: 'Tachometer Gauge Coil',
+    6: 'Speedometer Gauge Coil',
+    7: 'Turbocharger Air Pressure Gauge Coil',
+    8: 'Fuel Pressure Gauge Coil',
+    9: 'Fuel Level Gauge Coil',
+    10: 'Second Fuel Level Gauge Coil',
+    11: 'Engine Oil Pressure Gauge Coil',
+    12: 'Engine Oil Temperature Gauge Coil',
+    13: 'Engine Coolant Temperature Gauge Coil',
+    14: 'Pyrometer Gauge Coil',
+    16: 'Transmission Oil Pressure Gauge Coil',
+    15: 'Transmission Oil Temperature Gauge Coil',
+    17: 'Forward Rear Axle Temperature Gauge Coil',
+    18: 'Rear Rear Axle Temperature Gauge Coil',
+    19: 'Voltmeter Gauge Coil',
+    20: 'Primary Air Pressure Gauge Coil',
+    21: 'Secondary Air Pressure Gauge Coil',
+    22: 'Ammeter Gauge Coil',
+    23: 'Air Application Gauge Coil',
+    24: 'Air Restriction Gauge Coil',
+    range(25, 150): 'Reserved',
+})
 
 
 # Vehicle Management SIDs (MID = 142, 187, 188)
-vehicle_management_sids = {}
+vehicle_management_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Timing Sensor',
+    2: 'Timing Actuator',
+    3: 'Fuel Rack Position Sensor',
+    4: 'Fuel Rack Actuator',
+    5: 'Oil Level Indicator Output',
+    6: 'Tachometer Drive Output',
+    7: 'Speedometer Drive Output',
+    8: 'PWM Input (ABS/ASR)',
+    9: 'PWM Output',
+    10: 'Auxiliary Output #1',
+    11: 'Auxiliary Output #2',
+    12: 'Auxiliary Output #3',
+    13: 'Auxiliary Output #4',
+    14: 'Auxiliary Output #5',
+    15: 'Power Relay Control Output',
+    16: '“Neutral” Power Relay Control Output',
+    17: 'Starter Relay Control Output',
+    18: 'Transmission Shift Control Valve #1 Output',
+    19: 'Transmission Shift Control Valve #2 Output',
+    20: 'Differential Lock Control Valve #1 Output',
+    21: 'Differential Lock Control Valve #2 Output',
+    22: 'Windshield Wiper ON Relay Control Output',
+    23: 'Windshield Wiper Speed Select Output',
+    24: 'Mirror Heat Control Output',
+    25: 'Driver Door “Lock” Output',
+    26: 'Driver Door “Unlock” Output',
+    27: 'Switch Diagnostic Output',
+    28: 'Horn Control Output',
+    29: '“Wake Up” Output',
+    30: 'Interior Lamps Output',
+    31: 'Fan Override Indicator Lamp Output',
+    32: 'Low Air Pressure Indicator Relay Output',
+    33: 'Maintenance Lamp Output',
+    34: 'Battery Monitor Load #1 Control Output',
+    35: 'Battery Monitor Load #2 Control Output',
+    36: 'Headlamp Low Beam Left #1 Output',
+    37: 'Headlamp Low Beam Left #2 Output',
+    38: 'Headlamp Low Beam Right #1 Output',
+    39: 'Headlamp Low Beam Right #2 Output',
+    range(40, 150): 'Reserved',
+})
 
 
 # Fuel System SIDs (MID = 143)
-fuel_system_sids = {}
+fuel_system_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Injector Cylinder #1',
+    2: 'Injector Cylinder #2',
+    3: 'Injector Cylinder #3',
+    4: 'Injector Cylinder #4',
+    5: 'Injector Cylinder #5',
+    6: 'Injector Cylinder #6',
+    7: 'Injector Cylinder #7',
+    8: 'Injector Cylinder #8',
+    9: 'Injector Cylinder #9',
+    10: 'Injector Cylinder #10',
+    11: 'Injector Cylinder #11',
+    12: 'Injector Cylinder #12',
+    13: 'Injector Cylinder #13',
+    14: 'Injector Cylinder #14',
+    15: 'Injector Cylinder #15',
+    16: 'Injector Cylinder #16',
+    17: 'Fuel Shutoff Valve',
+    18: 'Fuel Control Valve',
+    19: 'Throttle Bypass Valve',
+    20: 'Timing Actuator',
+    21: 'Engine Position Sensor',
+    22: 'Timing Sensor',
+    23: 'Rack Actuator',
+    24: 'Rack Position Sensor',
+    25: 'External Engine Protection Input',
+    26: 'Auxiliary Output Device Driver',
+    27: 'Cooling Fan Drive Output',
+    28: 'Engine (Compression) Brake Output #1',
+    29: 'Engine (Compression) Brake Output #2',
+    30: 'Engine (Exhaust) Brake Output',
+    31: 'Pressure Control Valve #1',
+    32: 'Pressure Control Valve #2',
+    range(33, 150): 'Reserved',
+})
 
 
 # Cab Climate Control SIDs (MID = 146, 200)
-cab_climate_control_sids = {}
+cab_climate_control_sids = RangeDict({
+    0: 'Reserved',
+    1: 'HVAC Unit Discharge Temperature Sensor',
+    2: 'Evaporator Temperature Sensor',
+    3: 'Solar Load Sensor #1',
+    4: 'Solar Load Sensor #2',
+    5: 'Fresh/Recirculation Air Intake Door Actuator',
+    6: 'Mode Door #1 Actuator',
+    7: 'Mode Door #2 Actuator',
+    8: 'Mode Door #3 Actuator',
+    9: 'Blend Door Actuator',
+    10: 'Blower Motor',
+    11: 'A/C Clutch Relay',
+    12: 'Water Valve',
+    13: 'Heater Exchanger Temperature Sensor',
+    14: 'In Cabin Temperature Sensor Blower',
+    15: 'Blower Clutch',
+    16: 'Stepper Motor Phase 1',
+    17: 'Stepper Motor Phase 2',
+    18: 'Stepper Motor Phase 3',
+    19: 'Stepper Motor Phase 4',
+    20: 'Refrigerant Evaporator Inlet Temperature Sensor',
+    21: 'Refrigerant Evaporator Outlet Temperature Sensor',
+    22: 'Refrigerant Evaporator Inlet Pressure Sensor',
+    23: 'Refrigerant Evaporator Outlet Pressure Sensor',
+    24: 'Refrigerant Compressor Inlet Temperature Sensor',
+    25: 'Refrigerant Compressor Outlet Temperature Sensor',
+    26: 'Refrigerant Compressor Inlet Pressure Sensor',
+    27: 'Refrigerant Compressor Outlet Pressure Sensor',
+    28: 'Refrigerant Condenser Outlet Temperature Sensor',
+    29: 'Refrigerant Condenser Outlet Pressure Sensor',
+    30: 'Climate Control Air Filter Differential Pressure Sensor',
+    range(31, 150): 'Reserved',
+})
 
 
 # Suspension SIDs (MID = 150, 151)
-suspension_sids = {}
+suspension_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Solenoid Valve Axle 1 Right',
+    2: 'Solenoid Valve Axle 1 Left',
+    3: 'Solenoid Valve Axle 2 Right',
+    4: 'Solenoid Valve Axle 2 Left',
+    5: 'Solenoid Valve Axle 3 Right',
+    6: 'Solenoid Valve Axle 3 Left',
+    7: 'Solenoid Valve Central (Lowering/Lifting Control)',
+    8: 'Solenoid Valve for Lifting the Lifting/Trailing Axle',
+    9: 'Solenoid Valve for Lowering the Lifting/Trailing Axle',
+    10: 'Solenoid Valve for Control of the Lift Bellow',
+    11: 'Solenoid Valve for Starting Lock',
+    12: 'Solenoid Valve for Door Release',
+    13: 'Solenoid Valve for Mainflow Throttle',
+    14: 'Solenoid Valve for Transverse Lock/Throttle',
+    15: 'Solenoid Valve for Automatic Load-Dependent Brake-Power Balance',
+    16: 'Height Sensor Axle 1 Right',
+    17: 'Height Sensor Axle 1 Left',
+    18: 'Height Sensor Axle 2 Right',
+    19: 'Height Sensor Axle 2 Left',
+    20: 'Height Sensor Axle 3 Right',
+    21: 'Height Sensor Axle 3 Left',
+    22: 'Pressure Sensor Axle 1 Right',
+    23: 'Pressure Sensor Axle 1 Left',
+    24: 'Pressure Sensor Axle 2 Right',
+    25: 'Pressure Sensor Axle 2 Left',
+    26: 'Pressure Sensor Axle 3 Right',
+    27: 'Pressure Sensor Axle 3 Left',
+    28: 'Pressure Sensor Lift Bellow',
+    29: 'Sidewalk Detector Sensor',
+    30: 'Switch for Maximum Permanent Permissible Pressure',
+    31: 'Switch for Maximum Temporary Permissible Pressure',
+    32: 'Speed Signal Input',
+    33: 'Remote Control Unit #1',
+    34: 'Central Valve Relay',
+    35: 'Auxiliary Tank Control',
+    36: 'Exterior Kneel (warning lamp and audible alarm)',
+    37: 'Wheel Chair Lift Inhibit',
+    38: 'Checksum ECU Specific Data',
+    39: 'Checksum Parameter Data',
+    40: 'Checksum Calibration Data Level Sensors',
+    41: 'Checksum Calibration Data Pressure Sensors',
+    42: 'Checksum Maximum Axle Load Data',
+    43: 'Central 3/2 Solenoid Valve Axle 3',
+    44: 'Central 3/2 Solenoid Valve Front Axle',
+    45: 'Pressure Sensor Brake Pressure',
+    46: 'Power Supply for Pressure Sensors',
+    47: 'Power Supply for Remote Controls',
+    48: 'Remote Control #1 Data Line',
+    49: 'Remote Control #1 Clock Line',
+    50: 'Remote Control #2 Data Line',
+    51: 'Remote Control #2 Clock Line',
+    52: 'Remote Control Unit #2',
+    53: 'Power Supply for Solenoid Valves',
+    54: 'Proportional Valve Front Axle Left',
+    55: 'Proportional Valve Front Axle Right',
+    56: 'Proportional Valve Drive Axle Left',
+    57: 'Proportional Valve Drive Axle Right',
+    58: 'Proportional Valve Axle 3 Left',
+    59: 'Proportional Valve Axle 3 Right',
+    range(60, 150): 'Reserved',
+})
 
 
 # Park Brake Controller SIDs (MID = 157)
-park_brake_controller_sids = {}
+park_brake_controller_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Pressure Sender #1',
+    2: 'Pressure Sender #2',
+    3: 'Solenoid Control #1',
+    4: 'Solenoid Control #2',
+    5: 'Solenoid Control #3',
+    6: 'Solenoid Control #4',
+    7: 'Operator Control Switch #1 (input)',
+    8: 'Operator Control Switch #2 (input)',
+    9: 'Operator Station',
+    10: 'Passenger Station',
+    11: 'Interior Station',
+    12: 'Exterior Station',
+    13: 'Light Sequence Control',
+    14: 'Warning light #1',
+    15: 'Warning light #2',
+    16: 'Speed Sense Comparator',
+    17: 'Series Latch Monitor',
+    18: 'Expansion ECU Station',
+    19: 'Aux Switch Input #1',
+    20: 'Aux Switch Input #2',
+    21: 'Diagnostic Input',
+    22: 'Aux Data Link (I2C)',
+    23: 'Solenoid Supply #1',
+    24: 'Solenoid Supply #2',
+    25: 'Solenoid Supply #3',
+    26: 'Solenoid Supply #4',
+    27: 'Operator Control Switch #1 (output)',
+    28: 'Operator Control Switch #2 (output)',
+    29: 'Operator Control Switch Aux',
+    30: 'Aux Output #1',
+    31: 'Aux Output # 2',
+    32: 'Aux Output # 3',
+    33: 'Aux Output # 4',
+    34: 'Aux Output # 5',
+    35: 'Aux Output # 6',
+    36: 'Aux Output # 7',
+    37: 'Diagnostic Output',
+    38: 'Pressure Control Modulator',
+    39: 'Series Latch Control',
+    40: 'Brownout Voltage Sequence Control',
+    range(41, 150): 'Reserved',
+})
 
 
 # Vehicle Navigation SIDs (MID = 162, 191)
-vehicle_navigation_sids = {}
+vehicle_navigation_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Dead Reckoning Unit',
+    2: 'Loran Receiver',
+    3: 'Global Positioning System (GPS)',
+    4: 'Integrated Navigation Unit',
+    range(5, 150): 'Reserved',
+})
 
 
 # Vehicle Security SIDs (MID = 163)
-vehicle_security_sids = {}
+vehicle_security_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Transceiver Antenna',
+    2: 'Security Transponder',
+    range(3, 150): 'Reserved',
+})
 
 
 # Tire SIDs (MID = 166, 168, 169, 186)
-tire_sids = {}
+tire_sids = RangeDict({
+
+Tire SIDs (MID = 166,
+    0: 'Reserved',
+    1: 'Operator Control Panel (OCP)',
+    2: 'Pneumatic Control Unit (PCU)',
+    3: 'PCU Steer Solenoid',
+    4: 'PCU Drive Solenoid',
+    5: 'PCU Solenoid Trailer #1, Tag #1, or Push #1',
+    6: 'PCU Supply Solenoid',
+    7: 'PCU Control Solenoid',
+    8: 'PCU Deflate Solenoid',
+    9: 'Pneumatic—Steer Channel',
+    10: 'Pneumatic—Drive Channel',
+    11: 'Pneumatic—Trailer #1, Tag #1, or Push #1 Channel',
+    12: 'Drive Axle Manifold Deflation Solenoid',
+    13: 'Steer Axle Manifold Deflation Solenoid',
+    14: 'PCU Solenoid Trailer #2, Tag #2, or Push #2',
+    15: 'Brake Priority Pressure Switch',
+    16: 'Pneumatic-Trailer #2, Tag #2, or Push #2 Channel',
+    17: 'Wiring Harness',
+    18: 'Tire Pressure Sensor - # 1',
+    19: 'Tire Pressure Sensor - # 2',
+    20: 'Tire Pressure Sensor - # 3',
+    21: 'Tire Pressure Sensor - # 4',
+    22: 'Tire Pressure Sensor - # 5',
+    23: 'Tire Pressure Sensor - # 6',
+    24: 'Tire Pressure Sensor - # 7',
+    25: 'Tire Pressure Sensor - # 8',
+    26: 'Tire Pressure Sensor - # 9',
+    27: 'Tire Pressure Sensor - # 10',
+    28: 'Tire Pressure Sensor - # 11',
+    29: 'Tire Pressure Sensor - # 12',
+    30: 'Tire Pressure Sensor - # 13',
+    31: 'Tire Pressure Sensor - # 14',
+    32: 'Tire Pressure Sensor - # 15',
+    33: 'Tire Pressure Sensor - # 16',
+    34: 'Tire Temperature Sensor - # 1',
+    35: 'Tire Temperature Sensor - # 2',
+    36: 'Tire Temperature Sensor - # 3',
+    37: 'Tire Temperature Sensor - # 4',
+    38: 'Tire Temperature Sensor - # 5',
+    39: 'Tire Temperature Sensor - # 6',
+    40: 'Tire Temperature Sensor - # 7',
+    41: 'Tire Temperature Sensor - # 8',
+    42: 'Tire Temperature Sensor - # 9',
+    43: 'Tire Temperature Sensor - # 10',
+    44: 'Tire Temperature Sensor - # 11',
+    45: 'Tire Temperature Sensor - # 12',
+    46: 'Tire Temperature Sensor - # 13',
+    47: 'Tire Temperature Sensor - # 14',
+    48: 'Tire Temperature Sensor - # 15',
+    49: 'Tire Temperature Sensor - # 16',
+    50: 'Tire Sensor Voltage - # 1',
+    51: 'Tire Sensor Voltage - # 2',
+    52: 'Tire Sensor Voltage - # 3',
+    53: 'Tire Sensor Voltage - # 4',
+    54: 'Tire Sensor Voltage - # 5',
+    55: 'Tire Sensor Voltage - # 6',
+    56: 'Tire Sensor Voltage - # 7',
+    57: 'Tire Sensor Voltage - # 8',
+    58: 'Tire Sensor Voltage - # 9',
+    59: 'Tire Sensor Voltage - # 10',
+    60: 'Tire Sensor Voltage - # 11',
+    61: 'Tire Sensor Voltage - # 12',
+    62: 'Tire Sensor Voltage - # 13',
+    63: 'Tire Sensor Voltage - # 14',
+    64: 'Tire Sensor Voltage - # 15',
+    65: 'Tire Sensor Voltage - # 16',
+    range(66, 150): 'Reserved',
+})
 
 
 # Particulate Trap SIDs (MID = 177)
-particulate_trap_sids = {}
+particulate_trap_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Particulate Trap Intake Gas Temperature Bank 1',
+    2: 'Particulate Trap Intake Gas Temperature Bank 2',
+    3: 'Particulate Trap Outlet Gas Temperature Bank 1',
+    4: 'Particulate Trap Outlet Gas Temperature Bank 2',
+    5: 'Particulate Trap Intermediate Gas Temperature Bank 1',
+    6: 'Particulate Trap Intermediate Gas Temperature Bank 2',
+    7: 'Particulate Trap Differential Pressure Bank 1',
+    8: 'Particulate Trap Differential Pressure Bank 2',
+    9: 'Exhaust Gas Temperature 1',
+    10: 'Exhaust Gas Temperature 2',
+    11: 'Exhaust Gas Temperature 3',
+    12: 'Exhaust Gas Temperature 1 Bank 2',
+    13: 'Exhaust Gas Temperature 2 Bank 2',
+    14: 'Exhaust Gas Temperature 3 Bank 2',
+    15: 'Aftertreatment #1 Fuel Pressure',
+    16: 'Aftertreatment #1 Fuel Pressure Control Actuator',
+    17: 'Aftertreatment #1 Fuel Enable Actuator',
+    18: 'Aftertreatment #1 Ignition',
+    19: 'Aftertreatment #2 Fuel Pressure',
+    20: 'Aftertreatment #2 Fuel Pressure Control Actuator',
+    21: 'Aftertreatment #2 Fuel Enable Actuator',
+    22: 'Aftertreatment #2 Ignition',
+    23: 'Aftertreatment #1 Air Enable Actuator',
+    24: 'Aftertreatment #1 Purge Air Actuator',
+    25: 'Aftertreatment #1 Atomization Air Actuator',
+    26: 'Aftertreatment #1 Air System Relay',
+    27: 'Aftertreatment #2 Air Enable Actuator',
+    28: 'Aftertreatment #2 Purge Air Actuator',
+    29: 'Aftertreatment #2 Atomization Air Actuator',
+    30: 'Aftertreatment #2 Air System Relay',
+    31: 'Aftertreatment #1 Supply Air Pressure',
+    32: 'Aftertreatment #1 Purge Air Pressure',
+    33: 'Aftertreatment #1 Air Pressure Control Actuator',
+    34: 'Aftertreatment #1 Air Pressure Actuator Position',
+    35: 'Aftertreatment #2 Supply Air Pressure',
+    36: 'Aftertreatment #2 Purge Air Pressure',
+    37: 'Aftertreatment #2 Air Pressure Control Actuator',
+    38: 'Aftertreatment #2 Air Pressure Actuator Position',
+    39: 'Aftertreatment #1 Failed to Ignite',
+    40: 'Aftertreatment #1 Loss of Ignition',
+    41: 'Aftertreatment #2 Failed to Ignite',
+    42: 'Aftertreatment #2 Loss of Ignition',
+    43: 'Aftertreatment #1 Regeneration Manually Disabled',
+    44: 'Aftertreatment #2 Regeneration Manually Disabled',
+    45: 'Aftertreatment #1 Particulate Trap Intake Pressure',
+    46: 'Aftertreatment #1 Particulate Trap Outlet Pressure',
+    47: 'Oil Scavenge Pump',
+    48: 'Catalyst 1 System Monitor',
+    49: 'Aftertreatment 1 Fuel Drain Actuator',
+    50: 'Aftertreatment 1 Fuel Injector 1',
+    51: 'Particulate Matter Trap Monitor',
+    52: 'Aftertreatment #1 Purge Air Pressure',
+    53: 'Aftertreatment #1 Secondary Air Mass Flow',
+    54: 'Particulate Trap Active Regeneration Inhibited Due to Permanent System Lockout',
+    55: 'Aftertreatment 1 Fuel Rate',
+    56: 'Particulate Trap Active Regeneration Inhibited Status',
+    57: 'Particulate Trap Active Regeneration Inhibited Due to Inhibit Switch',
+    58: 'Particulate Trap Active Regeneration Inhibited Due to Temporary System Lockout',
+    range(59, 150): 'Reserved',
+})
 
 
 # Vehicle Sensors to Data Converter SIDs (MID = 178)
-vehicle_sensors_to_data_converter_sids = {}
+vehicle_sensors_to_data_converter_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Battery Positive Input',
+    2: 'Battery Negative Input',
+    3: 'Current Shunt (-) Input',
+    4: 'Current Shunt (+) Input',
+    5: 'Starter Negative Input',
+    6: 'Alternator Negative Input',
+    7: 'Transducer +5V Excitation',
+    8: 'Starter Positive Input',
+    9: 'Starter Solenoid Input',
+    10: 'Alternator Positive Input',
+    11: 'Alternator Field Input',
+    12: 'Fuel Solenoid Positive Input',
+    13: 'User Probe Input',
+    14: 'Fuel Supply Sender Input',
+    15: 'Air Cleaner Delta P Sender Input',
+    16: 'Fuel Filter Delta P Sender Input',
+    17: 'Oil Filter Inlet Sender Input',
+    18: 'Fuel Return Sender Input',
+    19: 'Oil Filter Outlet Sender Input',
+    20: 'Fuel Vacuum Sender Input',
+    21: 'Battery Negative Input Circuit',
+    22: 'Battery Positive Input Circuit',
+    23: 'Starter Positive Input Circuit',
+    24: 'Starter Negative Input Circuit',
+    25: 'Starter Solenoid Input Circuit',
+    26: 'Alternator Field Input Circuit',
+    27: 'Alternator Positive Input Circuit',
+    28: 'Alternator Negative Input Circuit',
+    29: 'Current Sensor Discharge Circuit',
+    30: 'Current Sensor Charge Circuit',
+    range(31, 150): 'Reserved',
+})
 
 
 # Refrigerant Management Systems SIDs (MID = 190)
-refrigerant_management_systems_sids = {}
+refrigerant_management_systems_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Refrigerant Charge',
+    2: 'Refrigerant Moisture Level',
+    3: 'Non-condensable Gas in Refrigerant',
+    4: 'Refrigerant Flow Control Solenoid',
+    5: 'Low Side Refrigerant Pressure Switch',
+    6: 'Compressor Clutch Circuit',
+    7: 'Evaporator Thermostat Circuit',
+    8: 'Refrigerant Flow',
+    9: 'Climate Control Air Filter Differential Pressure Sensor',
+    range(10, 150): 'Reserved',
+})
 
 
 # Tractor/Trailer Bridge SIDs (MID = 217, 218)
-tractor_trailer_bridge_sids = {}
+tractor_trailer_bridge_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Auxiliary input #1',
+    2: 'Auxiliary input #2',
+    3: 'Auxiliary input #3',
+    4: 'Auxiliary input #4',
+    5: 'Auxiliary input #5',
+    6: 'Auxiliary input #6',
+    7: 'Auxiliary input #7',
+    8: 'Auxiliary input #8',
+    9: 'Clearance, side marker, identification lamp circuit (Black)',
+    10: 'Left turn lamp circuit (Yellow)',
+    11: 'Stop lamp circuit (Red)',
+    12: 'Right turn lamp circuit (Green)',
+    13: 'Tail lamp/license plate lamp circuit (Brown)',
+    14: 'Auxiliary lamp circuit (Blue)',
+    15: 'Tractor mounted rear axle slider control unit',
+    16: 'Trailer mounted rear axle slider control unit',
+    range(1, 150): 'Reserved',
+})
 
 
 # Collision Avoidance Systems SIDs (MID = 219)
-collision_avoidance_systems_sids = {}
+collision_avoidance_systems_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Forward Antenna',
+    2: 'Antenna Electronics',
+    3: 'Brake Input Monitor',
+    4: 'Speaker Monitor',
+    5: 'Steering Sensor Monitor',
+    6: 'Speedometer Monitor',
+    7: 'Right Turn Signal Monitor',
+    8: 'Left Turn Signal Monitor',
+    9: 'Control Display Unit',
+    10: 'Right Side Sensor',
+    11: 'Left Side Sensor',
+    12: 'Rear Sensor',
+    range(13, 150): 'Reserved',
+})
+
+
+# Driveline Retarder SIDs (MID = 222)
+driveline_retarder_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Retarder Enable Solenoid Valve',
+    2: 'Retarder Modulation Solenoid Valve',
+    3: 'Retarder Response Solenoid Valve',
+    4: 'Retarder Modulation Request Sensor',
+    5: 'Retarder Response System Pressure Indicator',
+    range(6, 150): 'Reserved',
+})
 
 
 # Safety Restraint System SIDs (MID = 232, 254)
-safety_restraint_system_sids = {}
+safety_restraint_system_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Driver Air Bag Ignitor Loop',
+    2: 'Passenger Air Bag Ignitor Loop',
+    3: 'Left Belt Tensioner Ignitor Loop',
+    4: 'Right Belt Tensioner Ignitor Loop',
+    5: 'Safety Restraint System (SRS) Lamp—directly controlled by the ECU',
+    6: 'Automotive Seat Occupancy Sensor (AOS)—Passenger Side',
+    7: 'Side Collision Detector (SDC)—Left',
+    8: 'Side Bag Ignitor Loop 1—Left',
+    9: 'Side Bag Ignitor Loop 2—Left',
+    10: 'Side Collision Detector—Right',
+    11: 'Side Bag Ignitor Loop 1—Right',
+    12: 'Side Bag Ignitor Loop 2—Right',
+    13: 'Rollover Sensor',
+    14: 'Driver Air Bag Stage 2 Igniter Loop',
+    15: 'Passenger Air Bag Stage 2 Igniter Loop',
+    range(16, 150): 'Reserved',
+})
 
 
 # Forward Road Image Processor SIDs (MID = 248)
-forward_road_image_processor_sids = {}
+forward_road_image_processor_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Forward View Imager System',
+    range(2, 150): 'Reserved',
+})
 
 
 # Brake Stroke Alert Monitor, Tractor SIDs (MID = 253)
-brake_stroke_alert_monitor_tractor_sids = {}
-
-"""
-Reserved for future assignment by SAE
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-
-Reserved
-C1 Solenoid Valve
-C2 Solenoid Valve
-C3 Solenoid Valve
-C4 Solenoid Valve
-C5 Solenoid Valve
-C6 Solenoid Valve
-Lockup Solenoid Valve
-Forward Solenoid Valve
-Low Signal Solenoid Valve
-Retarder Enable Solenoid Valve
-Retarder Modulation Solenoid Valve
-Retarder Response Solenoid Valve
-Differential Lock Solenoid Valve
-Engine/Transmission Match
-Retarder Modulation Request Sensor
-Neutral Start Output
-Turbine Speed Sensor
-Primary Shift Selector
-Secondary Shift Selector
-Special Function Inputs
-C1 Clutch Pressure Indicator
-C2 Clutch Pressure Indicator
-C3 Clutch Pressure Indicator
-C4 Clutch Pressure Indicator
-C5 Clutch Pressure Indicator
-SAE
- J1587 Revised JUL2008
- - 33 -
-TABLE 7 - SUBSYSTEM26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65–150
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-C6 Clutch Pressure Indicator
-Lockup Clutch Pressure Indicator
-Forward Range Pressure Indicator
-Neutral Range Pressure Indicator
-Reverse Range Pressure Indicator
-Retarder Response System Pressure Indicator
-Differential Lock Clutch Pressure Indicator
-Multiple Pressure Indicators
-Reverse Switch
-Range High Actuator
-Range Low Actuator
-Splitter Direct Actuator
-Splitter Indirect Actuator
-Shift Finger Rail Actuator 1
-Shift Finger Gear Actuator 1
-Upshift Request Switch
-Downshift Request Switch
-Torque Converter Interrupt Actuator
-Torque Converter Lockup Actuator
-Range High Indicator
-Range Low Indicator
-Shift Finger Neutral Indicator
-Shift Finger Engagement Indicator
-Shift Finger Center Rail Indicator
-Shift Finger Rail Actuator 2
-Shift Finger Gear Actuator 2
-Hydraulic System
-Defuel Actuator
-Inertia Brake Actuator
-Clutch Actuator
-Auxiliary Range Mechanical System
-Shift Console Data Link
-Main Box Shift Engagement System
-Main Box Rail Selection System
-Main Box Shift Neutralization System
-Auxiliary Splitter Mechanical System
-Transmission Controller Power Relay
-Output Shaft Speed Sensor
-Throttle Position Device
-Reserved for future assignment by SAE
-Brake SIDs (MIDs = 136, 137, 138, 139, 246, 247)
-0
- Reserved
-1
- Wheel Sensor ABS Axle 1 Left
-2
- Wheel Sensor ABS Axle 1 Right
-3
- Wheel Sensor ABS Axle 2 Left
-4
- Wheel Sensor ABS Axle 2 Right
-5
- Wheel Sensor ABS Axle 3 Left
-6
- Wheel Sensor ABS Axle 3 Right
-SAE
-TABLE 7 - SUBSYSTEM7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-J1587 Revised JUL2008
- - 34 -
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Pressure Modulation Valve ABS Axle 1 Left
-Pressure Modulation Valve ABS Axle 1 Right
-Pressure Modulation Valve ABS Axle 2 Left
-Pressure Modulation Valve ABS Axle 2 Right
-Pressure Modulation Valve ABS Axle 3 Left
-Pressure Modulation Valve ABS Axle 3 Right
-Retarder Control Relay
-Relay Diagonal 1
-Relay Diagonal 2
-Mode Switch ABS
-Mode Switch ASR
-DIF 1—ASR Valve
-DIF 2—ASR Valve
-Pneumatic Engine Control
-Electronic Engine Control (Servomotor)
-Speed Signal Input
-Tractor ABS Warning Light Bulb
-ASR Light Bulb
-Wheel Sensor, ABS Axle 1 Average
-Wheel Sensor, ABS Axle 2 Average
-Wheel Sensor, ABS Axle 3 Average
-Pressure Modulator, Drive Axle Relay Valve
-Pressure Transducer, Drive Axle Relay Valve
-Master Control Relay
-Trailer Brake Slack Out of Adjustment Forward Axle Left
-Trailer Brake Slack Out of Adjustment Forward axle Right
-Trailer Brake Slack Out of Adjustment Rear Axle Left
-Trailer Brake Slack Out of Adjustment Rear Axle Right
-Tractor Brake Slack Out of Adjustment Axle 1 Left
-Tractor Brake Slack Out of Adjustment Axle 1 Right
-Tractor Brake Slack Out of Adjustment Axle 2 Left
-Tractor Brake Slack Out of Adjustment Axle 2 Right
-Tractor Brake Slack Out of Adjustment Axle 3 Left
-Tractor Brake Slack Out of Adjustment Axle 3 Right
-Ride Height Relay
-Hold Modulator Valve Solenoid Axle 1 Left
-Hold Modulator Valve Solenoid Axle 1 Right
-Hold Modulator Valve Solenoid Axle 2 Left
-Hold Modulator Valve Solenoid Axle 2 Right
-Hold Modulator Valve Solenoid Axle 3 Left
-Hold Modulator Valve Solenoid Axle 3 Right
-Dump Modulator Valve Solenoid Axle 1 Left
-Dump Modulator Valve Solenoid Axle 1 Right
-Dump Modulator Valve Solenoid Axle 2 Left
-Dump Modulator Valve Solenoid Axle 2 Right
-Dump Modulator Valve Solenoid Axle 3 Left
-Dump Modulator Valve Solenoid Axle 3 Right
-Hydraulic Pump Motor
-Brake Light Switch 1
-SAE
-TABLE 7 - SUBSYSTEM56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-79
-80
-81
-82
-83
-84
-85
-86
-87
-88
-89
-90
-91
-92
-93
-94
-95
-96
-97
-98
-99
-100
-101
-102
-103
-104
-J1587 Revised JUL2008
- - 35 -
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Brake Light Switch 2
-Electronic Pressure Control, Axle 1
-Pneumatic Back-up Pressure Control, Axle 1
-Brake Pressure Sensing, Axle 1
-Electronic Pressure Control, Axle 2
-Pneumatic Back-up Pressure Control, Axle 2
-Brake Pressure Sensing, Axle 2
-Electronic Pressure Control, Axle 3
-Pneumatic Back-up Pressure Control, Axle 3
-Brake Pressure Sensing, Axle 3
-Electronic Pressure Control, Trailer Control
-Pneumatic Back-up Pressure Control, Trailer Control
-Brake Pressure Sensing, Trailer Control
-Axle Load Sensor
-Lining Wear Sensor, Axle 1 Left
-Lining Wear Sensor, Axle 1 Right
-Lining Wear Sensor, Axle 2 Left
-Lining Wear Sensor, Axle 2 Right
-Lining Wear Sensor, Axle 3 Left
-Lining Wear Sensor, Axle 3 Right
-Brake Signal Transmitter
-Brake Signal Sensor 1
-Brake Signal Sensor 2
-Tire Dimension Supervision
-Vehicle Deceleration Control
-Trailer ABS Warning Light Bulb
-Brake Torque Output Axle 1 Left
-Brake Torque Output Axle 1 Right
-Brake Torque Output Axle 2 Left
-Brake Torque Output Axle 2 Right
-Brake Torque Output Axle 3 Left
-Brake Torque Output Axle 3 Right
-Vehicle Dynamic Stability Control System (VDC)
-Steering Angle Sensor
-Voltage Supply for Stability Control System
-Brake Lining Display
-Pressure Limitation Valve
-Auxiliary Valve
-Hill holder System
-Voltage Supply, Lining Wear Sensors, Axle 1
-Voltage Supply, Lining Wear Sensors, Axle 2
-Voltage Supply, Lining Wear Sensors, Axle 3
-Reference Ground Connection
-Lateral Accelerometer
-Brake Light Relay
-Brake Warning Light Bulb
-Differential Lock control output (transfer case)
-Yaw Rate Sensor
-Service Odometer
-SAE
- J1587 Revised JUL2008
- - 36 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-105–150
- Reserved for future assignment by SAE
-Instrument Panel SIDs
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-16
-15
-17
-18
-19
-20
-21
-22
-23
-24
-25–150
-VehicleManagement0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-(MID = 140, 234)
-Reserved
-Left Fuel Level Sensor
-Right Fuel Level Sensor
-Fuel Feed Rate Sensor
-Fuel Return Rate Sensor
-Tachometer Gauge Coil
-Speedometer Gauge Coil
-Turbocharger Air Pressure Gauge Coil
-Fuel Pressure Gauge Coil
-Fuel Level Gauge Coil
-Second Fuel Level Gauge Coil
-Engine Oil Pressure Gauge Coil
-Engine Oil Temperature Gauge Coil
-Engine Coolant Temperature Gauge Coil
-Pyrometer Gauge Coil
-Transmission Oil Pressure Gauge Coil
-Transmission Oil Temperature Gauge Coil
-Forward Rear Axle Temperature Gauge Coil
-Rear Rear Axle Temperature Gauge Coil
-Voltmeter Gauge Coil
-Primary Air Pressure Gauge Coil
-Secondary Air Pressure Gauge Coil
-Ammeter Gauge Coil
-Air Application Gauge Coil
-Air Restriction Gauge Coil
-Reserved for future assignment by SAE
-SIDs (MID = 142, 187, 188)
-Reserved
-Timing Sensor
-Timing Actuator
-Fuel Rack Position Sensor
-Fuel Rack Actuator
-Oil Level Indicator Output
-Tachometer Drive Output
-Speedometer Drive Output
-PWM Input (ABS/ASR)
-PWM Output
-Auxiliary Output #1
-Auxiliary Output #2
-Auxiliary Output #3
-Auxiliary Output #4
-Auxiliary Output #5
-Power Relay Control Output
-“Neutral” Power Relay Control Output
-Starter Relay Control Output
-SAE
- J1587 Revised JUL2008
- - 37 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40–150
-Transmission Shift Control Valve #1 Output
-Transmission Shift Control Valve #2 Output
-Differential Lock Control Valve #1 Output
-Differential Lock Control Valve #2 Output
-Windshield Wiper ON Relay Control Output
-Windshield Wiper Speed Select Output
-Mirror Heat Control Output
-Driver Door “Lock” Output
-Driver Door “Unlock” Output
-Switch Diagnostic Output
-Horn Control Output
-“Wake Up” Output
-Interior Lamps Output
-Fan Override Indicator Lamp Output
-Low Air Pressure Indicator Relay Output
-Maintenance Lamp Output
-Battery Monitor Load #1 Control Output
-Battery Monitor Load #2 Control Output
-Headlamp Low Beam Left #1 Output
-Headlamp Low Beam Left #2 Output
-Headlamp Low Beam Right #1 Output
-Headlamp Low Beam Right #2 Output
-Reserved for future assignment by SAE
-Fuel System SIDs0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-(MID = 143)
-Reserved
-Injector Cylinder #1
-Injector Cylinder #2
-Injector Cylinder #3
-Injector Cylinder #4
-Injector Cylinder #5
-Injector Cylinder #6
-Injector Cylinder #7
-Injector Cylinder #8
-Injector Cylinder #9
-Injector Cylinder #10
-Injector Cylinder #11
-Injector Cylinder #12
-Injector Cylinder #13
-Injector Cylinder #14
-Injector Cylinder #15
-Injector Cylinder #16
-Fuel Shutoff Valve
-Fuel Control Valve
-Throttle Bypass Valve
-Timing Actuator
-Engine Position Sensor
-Timing Sensor
-Rack Actuator
-SAE
- J1587 Revised JUL2008
- - 38 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33–150
-Rack Position Sensor
-External Engine Protection Input
-Auxiliary Output Device Driver
-Cooling Fan Drive Output
-Engine (Compression) Brake Output #1
-Engine (Compression) Brake Output #2
-Engine (Exhaust) Brake Output
-Pressure Control Valve #1
-Pressure Control Valve #2
-Reserved for future assignment by SAE
-Cab Climate Control1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31-150
-SIDs (MID = 146, 200)
-HVAC Unit Discharge Temperature Sensor
-Evaporator Temperature Sensor
-Solar Load Sensor #1
-Solar Load Sensor #2
-Fresh/Recirculation Air Intake Door Actuator
-Mode Door #1 Actuator
-Mode Door #2 Actuator
-Mode Door #3 Actuator
-Blend Door Actuator
-Blower Motor
-A/C Clutch Relay
-Water Valve
-Heater Exchanger Temperature Sensor
-In Cabin Temperature Sensor Blower
-Blower Clutch
-Stepper Motor Phase 1
-Stepper Motor Phase 2
-Stepper Motor Phase 3
-Stepper Motor Phase 4
-Refrigerant Evaporator Inlet Temperature Sensor
-Refrigerant Evaporator Outlet Temperature Sensor
-Refrigerant Evaporator Inlet Pressure Sensor
-Refrigerant Evaporator Outlet Pressure Sensor
-Refrigerant Compressor Inlet Temperature Sensor
-Refrigerant Compressor Outlet Temperature Sensor
-Refrigerant Compressor Inlet Pressure Sensor
-Refrigerant Compressor Outlet Pressure Sensor
-Refrigerant Condenser Outlet Temperature Sensor
-Refrigerant Condenser Outlet Pressure Sensor
-Climate Control Air Filter Differential Pressure Sensor
-Reserved for future assignment by SAE
-Suspension SIDs (MID = 150, 151)
-0
- Reserved
-1
- Solenoid Valve Axle 1 Right
-2
- Solenoid Valve Axle 1 Left
-3
- Solenoid Valve Axle 2 Right
-SAE
-TABLE 7 - SUBSYSTEM4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-J1587 Revised JUL2008
- - 39 -
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Solenoid Valve Axle 2 Left
-Solenoid Valve Axle 3 Right
-Solenoid Valve Axle 3 Left
-Solenoid Valve Central (Lowering/Lifting Control)
-Solenoid Valve for Lifting the Lifting/Trailing Axle
-Solenoid Valve for Lowering the Lifting/Trailing Axle
-Solenoid Valve for Control of the Lift Bellow
-Solenoid Valve for Starting Lock
-Solenoid Valve for Door Release
-Solenoid Valve for Mainflow Throttle
-Solenoid Valve for Transverse Lock/Throttle
-Solenoid Valve for Automatic Load-Dependent Brake-Power Balance
-Height Sensor Axle 1 Right
-Height Sensor Axle 1 Left
-Height Sensor Axle 2 Right
-Height Sensor Axle 2 Left
-Height Sensor Axle 3 Right
-Height Sensor Axle 3 Left
-Pressure Sensor Axle 1 Right
-Pressure Sensor Axle 1 Left
-Pressure Sensor Axle 2 Right
-Pressure Sensor Axle 2 Left
-Pressure Sensor Axle 3 Right
-Pressure Sensor Axle 3 Left
-Pressure Sensor Lift Bellow
-Sidewalk Detector Sensor
-Switch for Maximum Permanent Permissible Pressure
-Switch for Maximum Temporary Permissible Pressure
-Speed Signal Input
-Remote Control Unit #1
-Central Valve Relay
-Auxiliary Tank Control
-Exterior Kneel (warning lamp and audible alarm)
-Wheel Chair Lift Inhibit
-Checksum ECU Specific Data
-Checksum Parameter Data
-Checksum Calibration Data Level Sensors
-Checksum Calibration Data Pressure Sensors
-Checksum Maximum Axle Load Data
-Central 3/2 Solenoid Valve Axle 3
-Central 3/2 Solenoid Valve Front Axle
-Pressure Sensor Brake Pressure
-Power Supply for Pressure Sensors
-Power Supply for Remote Controls
-Remote Control #1 Data Line
-Remote Control #1 Clock Line
-Remote Control #2 Data Line
-Remote Control #2 Clock Line
-Remote Control Unit #2
-SAE
- J1587 Revised JUL2008
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-53
-54
-55
-56
-57
-58
-59
-60–150
-Power Supply for Solenoid Valves
-Proportional Valve Front Axle Left
-Proportional Valve Front Axle Right
-Proportional Valve Drive Axle Left
-Proportional Valve Drive Axle Right
-Proportional Valve Axle 3 Left
-Proportional Valve Axle 3 Right
-Reserved for future assignment by SAE
-Park Brake Controller0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-SIDs (MID = 157)
-Reserved
-Pressure Sender #1
-Pressure Sender #2
-Solenoid Control #1
-Solenoid Control #2
-Solenoid Control #3
-Solenoid Control #4
-Operator Control Switch #1 (input)
-Operator Control Switch #2 (input)
-Operator Station
-Passenger Station
-Interior Station
-Exterior Station
-Light Sequence Control
-Warning light #1
-Warning light #2
-Speed Sense Comparator
-Series Latch Monitor
-Expansion ECU Station
-Aux Switch Input #1
-Aux Switch Input #2
-Diagnostic Input
-Aux Data Link (I2C)
-Solenoid Supply #1
-Solenoid Supply #2
-Solenoid Supply #3
-Solenoid Supply #4
-Operator Control Switch #1 (output)
-Operator Control Switch #2 (output)
-Operator Control Switch Aux
-Aux Output #1
-Aux Output # 2
-Aux Output # 3
-Aux Output # 4
-Aux Output # 5
-Aux Output # 6
-Aux Output # 7
-Diagnostic Output
-Pressure Control Modulator
-- 40 -
-SAE
- J1587 Revised JUL2008
- - 41 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-39
- Series Latch Control
-40
- Brownout Voltage Sequence Control
-41-150
- Reserved for future assignment by SAE
-Vehicle Navigation SIDs (MID = 162, 191)
-0
- Reserved
-1
- Dead Reckoning Unit
-2
- Loran Receiver
-3
- Global Positioning System (GPS)
-4
- Integrated Navigation Unit
-5–150
- Reserved for future assignment by SAE
-Vehicle Security SIDs (MID = 163)
-0
- Reserved
-1
- Transceiver Antenna
-2
- Security Transponder
-3–150
- Reserved for future assignment by SAE
-Tire SIDs (MID = 166,0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-167, 168, 169, 186)
-Reserved
-Operator Control Panel (OCP)
-Pneumatic Control Unit (PCU)
-PCU Steer Solenoid
-PCU Drive Solenoid
-PCU Solenoid Trailer #1, Tag #1, or Push #1
-PCU Supply Solenoid
-PCU Control Solenoid
-PCU Deflate Solenoid
-Pneumatic—Steer Channel
-Pneumatic—Drive Channel
-Pneumatic—Trailer #1, Tag #1, or Push #1 Channel
-Drive Axle Manifold Deflation Solenoid
-Steer Axle Manifold Deflation Solenoid
-PCU Solenoid Trailer #2, Tag #2, or Push #2
-Brake Priority Pressure Switch
-Pneumatic-Trailer #2, Tag #2, or Push #2 Channel
-Wiring Harness
-Tire Pressure Sensor - # 1
-Tire Pressure Sensor - # 2
-Tire Pressure Sensor - # 3
-Tire Pressure Sensor - # 4
-Tire Pressure Sensor - # 5
-Tire Pressure Sensor - # 6
-Tire Pressure Sensor - # 7
-Tire Pressure Sensor - # 8
-Tire Pressure Sensor - # 9
-Tire Pressure Sensor - # 10
-Tire Pressure Sensor - # 11
-Tire Pressure Sensor - # 12
-SAE
- J1587 Revised JUL2008
- - 42 -
-TABLE 7 - SUBSYSTEM30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66–150
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Tire Pressure Sensor - # 13
-Tire Pressure Sensor - # 14
-Tire Pressure Sensor - # 15
-Tire Pressure Sensor - # 16
-Tire Temperature Sensor - # 1
-Tire Temperature Sensor - # 2
-Tire Temperature Sensor - # 3
-Tire Temperature Sensor - # 4
-Tire Temperature Sensor - # 5
-Tire Temperature Sensor - # 6
-Tire Temperature Sensor - # 7
-Tire Temperature Sensor - # 8
-Tire Temperature Sensor - # 9
-Tire Temperature Sensor - # 10
-Tire Temperature Sensor - # 11
-Tire Temperature Sensor - # 12
-Tire Temperature Sensor - # 13
-Tire Temperature Sensor - # 14
-Tire Temperature Sensor - # 15
-Tire Temperature Sensor - # 16
-Tire Sensor Voltage - # 1
-Tire Sensor Voltage - # 2
-Tire Sensor Voltage - # 3
-Tire Sensor Voltage - # 4
-Tire Sensor Voltage - # 5
-Tire Sensor Voltage - # 6
-Tire Sensor Voltage - # 7
-Tire Sensor Voltage - # 8
-Tire Sensor Voltage - # 9
-Tire Sensor Voltage - # 10
-Tire Sensor Voltage - # 11
-Tire Sensor Voltage - # 12
-Tire Sensor Voltage - # 13
-Tire Sensor Voltage - # 14
-Tire Sensor Voltage - # 15
-Tire Sensor Voltage - # 16
-Reserved for future assignment by SAE
-Particulate Trap SIDs related to (MID = 177)
-0
- Reserved
-1
- Particulate Trap Intake Gas Temperature Bank 1
-2
- Particulate Trap Intake Gas Temperature Bank 2
-3
- Particulate Trap Outlet Gas Temperature Bank 1
-4
- Particulate Trap Outlet Gas Temperature Bank 2
-5
- Particulate Trap Intermediate Gas Temperature Bank 1
-6
- Particulate Trap Intermediate Gas Temperature Bank 2
-7
- Particulate Trap Differential Pressure Bank 1
-8
- Particulate Trap Differential Pressure Bank 2
-9
- Exhaust Gas Temperature 1
-SAE
-TABLE 7 - SUBSYSTEM10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-J1587 Revised JUL2008
- - 43 -
-IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Exhaust Gas Temperature 2
-Exhaust Gas Temperature 3
-Exhaust Gas Temperature 1 Bank 2
-Exhaust Gas Temperature 2 Bank 2
-Exhaust Gas Temperature 3 Bank 2
-Aftertreatment #1 Fuel Pressure
-Aftertreatment #1 Fuel Pressure Control Actuator
-Aftertreatment #1 Fuel Enable Actuator
-Aftertreatment #1 Ignition
-Aftertreatment #2 Fuel Pressure
-Aftertreatment #2 Fuel Pressure Control Actuator
-Aftertreatment #2 Fuel Enable Actuator
-Aftertreatment #2 Ignition
-Aftertreatment #1 Air Enable Actuator
-Aftertreatment #1 Purge Air Actuator
-Aftertreatment #1 Atomization Air Actuator
-Aftertreatment #1 Air System Relay
-Aftertreatment #2 Air Enable Actuator
-Aftertreatment #2 Purge Air Actuator
-Aftertreatment #2 Atomization Air Actuator
-Aftertreatment #2 Air System Relay
-Aftertreatment #1 Supply Air Pressure
-Aftertreatment #1 Purge Air Pressure
-Aftertreatment #1 Air Pressure Control Actuator
-Aftertreatment #1 Air Pressure Actuator Position
-Aftertreatment #2 Supply Air Pressure
-Aftertreatment #2 Purge Air Pressure
-Aftertreatment #2 Air Pressure Control Actuator
-Aftertreatment #2 Air Pressure Actuator Position
-Aftertreatment #1 Failed to Ignite
-Aftertreatment #1 Loss of Ignition
-Aftertreatment #2 Failed to Ignite
-Aftertreatment #2 Loss of Ignition
-Aftertreatment #1 Regeneration Manually Disabled
-Aftertreatment #2 Regeneration Manually Disabled
-Aftertreatment #1 Particulate Trap Intake Pressure
-Aftertreatment #1 Particulate Trap Outlet Pressure
-Oil Scavenge Pump
-Catalyst 1 System Monitor
-Aftertreatment 1 Fuel Drain Actuator
-Aftertreatment 1 Fuel Injector 1
-Particulate Matter Trap Monitor
-Aftertreatment #1 Purge Air Pressure
-Aftertreatment #1 Secondary Air Mass Flow
-Particulate Trap Active Regeneration Inhibited Due to Permanent System
-Lockout
-Aftertreatment 1 Fuel Rate
-Particulate Trap Active Regeneration Inhibited Status
-Particulate Trap Active Regeneration Inhibited Due to Inhibit Switch
-SAE
- J1587 Revised JUL2008
- - 44 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-58
-59-150
-Particulate Trap Active Regeneration Inhibited Due to Temporary System
-Lockout
-Reserved for future assignment by SAE
-Vehicle Sensors to0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31-150
-Data Converter SIDs (MID = 178)
-Reserved
-Battery Positive Input
-Battery Negative Input
-Current Shunt (-) Input
-Current Shunt (+) Input
-Starter Negative Input
-Alternator Negative Input
-Transducer +5V Excitation
-Starter Positive Input
-Starter Solenoid Input
-Alternator Positive Input
-Alternator Field Input
-Fuel Solenoid Positive Input
-User Probe Input
-Fuel Supply Sender Input
-Air Cleaner Delta P Sender Input
-Fuel Filter Delta P Sender Input
-Oil Filter Inlet Sender Input
-Fuel Return Sender Input
-Oil Filter Outlet Sender Input
-Fuel Vacuum Sender Input
-Battery Negative Input Circuit
-Battery Positive Input Circuit
-Starter Positive Input Circuit
-Starter Negative Input Circuit
-Starter Solenoid Input Circuit
-Alternator Field Input Circuit
-Alternator Positive Input Circuit
-Alternator Negative Input Circuit
-Current Sensor Discharge Circuit
-Current Sensor Charge Circuit
-Reserved for future assignment by SAE
-Refrigerant Management Systems SIDs (MID = 190)
-0
- Reserved
-1
- Refrigerant Charge
-2
- Refrigerant Moisture Level
-3
- Non-condensable Gas in Refrigerant
-4
- Refrigerant Flow Control Solenoid
-5
- Low Side Refrigerant Pressure Switch
-6
- Compressor Clutch Circuit
-7
- Evaporator Thermostat Circuit
-8
- Refrigerant Flow
-9
- Climate Control Air Filter Differential Pressure Sensor
-10–150
- Reserved for future assignment by SAE
-SAE
- J1587 Revised JUL2008
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Tractor/Trailer Bridge SIDs (MID = 217, 218)
-0
- Reserved
-1
- Auxiliary input #1
-2
- Auxiliary input #2
-3
- Auxiliary input #3
-4
- Auxiliary input #4
-5
- Auxiliary input #5
-6
- Auxiliary input #6
-7
- Auxiliary input #7
-8
- Auxiliary input #8
-9
- Clearance, side marker, identification lamp circuit (Black)
-10
- Left turn lamp circuit (Yellow)
-11
- Stop lamp circuit (Red)
-12
- Right turn lamp circuit (Green)
-13
- Tail lamp/license plate lamp circuit (Brown)
-14
- Auxiliary lamp circuit (Blue)
-15
- Tractor mounted rear axle slider control unit
-16
- Trailer mounted rear axle slider control unit
-17–150
- Reserved for future assignment by SAE
-Collision Avoidance Systems SIDs (MID = 219)
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13–150
-Reserved
-Forward Antenna
-Antenna Electronics
-Brake Input Monitor
-Speaker Monitor
-Steering Sensor Monitor
-Speedometer Monitor
-Right Turn Signal Monitor
-Left Turn Signal Monitor
-Control Display Unit
-Right Side Sensor
-Left Side Sensor
-Rear Sensor
-Reserved for future assignment by SAE
-Driveline Retarder SIDs (MID = 222)
-0
- Reserved
-1
- Retarder Enable Solenoid Valve
-2
- Retarder Modulation Solenoid Valve
-3
- Retarder Response Solenoid Valve
-4
- Retarder Modulation Request Sensor
-5
- Retarder Response System Pressure Indicator
-6–150
- Reserved for future assignment by SAE
-- 45 -
-SAE
- J1587 Revised JUL2008
- - 46 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-Safety Restraint System SIDs (MID = 232, 254)
-0
- Reserved
-1
- Driver Air Bag Ignitor Loop
-2
- Passenger Air Bag Ignitor Loop
-3
- Left Belt Tensioner Ignitor Loop
-4
- Right Belt Tensioner Ignitor Loop
-5
- Safety Restraint System (SRS) Lamp—directly controlled by the ECU
-6
- Automotive Seat Occupancy Sensor (AOS)—Passenger Side
-7
- Side Collision Detector (SDC)—Left
-8
- Side Bag Ignitor Loop 1—Left
-9
- Side Bag Ignitor Loop 2—Left
-10
- Side Collision Detector—Right
-11
- Side Bag Ignitor Loop 1—Right
-12
- Side Bag Ignitor Loop 2—Right
-13
- Rollover Sensor
-14
- Driver Air Bag Stage 2 Igniter Loop
-15
- Passenger Air Bag Stage 2 Igniter Loop
-16–150
- Reserved for future assignment by SAE
-Forward Road Image Processor SIDs (MID = 248)
-0
- Reserved
-1
- Forward View Imager System
-2-150
- Reserved for future assignment by SAE
-Brake Stroke Alert0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-Monitor, Tractor SIDs (MID = 253)
-Reserved
-Tractor Brake Stroke Axle 1 Left
-Tractor Brake Stroke, Axle 1 Right
-Tractor Brake Stroke, Axle 2 Left
-Tractor Brake Stroke, Axle 2 Right
-Tractor Brake Stroke, Axle 3 Left
-Tractor Brake Stroke, Axle 3 Right
-Tractor Brake Stroke, Axle 4 Left
-Tractor Brake Stroke, Axle 4 Right
-Tractor Brake Stroke Alert Monitor
-Trailer #1 Brake Stroke, Axle 1 Left
-Trailer #1 Brake Stroke, Axle 1 Right
-Trailer #1 Brake Stroke, Axle 2 Left
-Trailer #1 Brake Stroke, Axle 2 Right
-Trailer #1 Brake Stroke, Axle 3 Left
-Trailer #1 Brake Stroke, Axle 3 Right
-Trailer #1 Brake Stroke, Axle 4 Left
-Trailer #1 Brake Stroke, Axle 4 Right
-Trailer #1 Brake Stroke, Alert Monitor
-Trailer #2 Brake Stroke, Axle 1 Left
-Trailer #2 Brake Stroke, Axle 1 Right
-Trailer #2 Brake Stroke, Axle 2 Left
-Trailer #2 Brake Stroke, Axle 2 Right
-Trailer #2 Brake Stroke, Axle 3 Left
-SAE
- J1587 Revised JUL2008
- - 47 -
-TABLE 7 - SUBSYSTEM IDENTIFICATION (SID) ASSIGNMENT LIST (CONTINUED)
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46-150
-1. Superseded by SIDsTrailer #2 Brake Stroke, Axle 3 Right
-Trailer #2 Brake Stroke, Axle 4 Left
-Trailer #2 Brake Stroke Axle 4 Right
-Trailer #2 Brake Stroke Alert Monitor
-Trailer #3 Brake Stroke, Axle 1 Left
-Trailer #3 Brake Stroke, Axle 1 Right
-Trailer #3 Brake Stroke, Axle 2 Left
-Trailer #3 Brake Stroke, Axle 2 Right
-Trailer #3 Brake Stroke, Axle 3 Left
-Trailer #3 Brake Stroke, Axle 3 Right
-Trailer #3 Brake Stroke, Axle 4 Left
-Trailer #3 Brake Stroke Axle 4 Right
-Trailer #3 Brake Stroke Alert Monitor
-Trailer Brake Stroke, Axle 1 Left
-Trailer Brake Stroke, Axle 1 Right
-Trailer Brake Stroke, Axle 2 Left
-Trailer Brake Stroke, Axle 2 Right
-Trailer Brake Stroke, Axle 3 Left
-Trailer Brake Stroke, Axle 3 Right
-Trailer Brake Stroke, Axle 4 Left
-Trailer Brake Stroke, Axle 4 Right
-Trailer Brake Stroke Alert Monitor
-Reserved for future assignment by SAE
-151–155
-"""
+brake_stroke_alert_monitor_tractor_sids = RangeDict({
+    0: 'Reserved',
+    1: 'Tractor Brake Stroke Axle 1 Left',
+    2: 'Tractor Brake Stroke, Axle 1 Right',
+    3: 'Tractor Brake Stroke, Axle 2 Left',
+    4: 'Tractor Brake Stroke, Axle 2 Right',
+    5: 'Tractor Brake Stroke, Axle 3 Left',
+    6: 'Tractor Brake Stroke, Axle 3 Right',
+    7: 'Tractor Brake Stroke, Axle 4 Left',
+    8: 'Tractor Brake Stroke, Axle 4 Right',
+    9: 'Tractor Brake Stroke Alert Monitor',
+    10: 'Trailer #1 Brake Stroke, Axle 1 Left',
+    11: 'Trailer #1 Brake Stroke, Axle 1 Right',
+    12: 'Trailer #1 Brake Stroke, Axle 2 Left',
+    13: 'Trailer #1 Brake Stroke, Axle 2 Right',
+    14: 'Trailer #1 Brake Stroke, Axle 3 Left',
+    15: 'Trailer #1 Brake Stroke, Axle 3 Right',
+    16: 'Trailer #1 Brake Stroke, Axle 4 Left',
+    17: 'Trailer #1 Brake Stroke, Axle 4 Right',
+    18: 'Trailer #1 Brake Stroke, Alert Monitor',
+    19: 'Trailer #2 Brake Stroke, Axle 1 Left',
+    20: 'Trailer #2 Brake Stroke, Axle 1 Right',
+    21: 'Trailer #2 Brake Stroke, Axle 2 Left',
+    22: 'Trailer #2 Brake Stroke, Axle 2 Right',
+    23: 'Trailer #2 Brake Stroke, Axle 3 Left',
+    24: 'Trailer #2 Brake Stroke, Axle 3 Right',
+    25: 'Trailer #2 Brake Stroke, Axle 4 Left',
+    26: 'Trailer #2 Brake Stroke Axle 4 Right',
+    27: 'Trailer #2 Brake Stroke Alert Monitor',
+    28: 'Trailer #3 Brake Stroke, Axle 1 Left',
+    29: 'Trailer #3 Brake Stroke, Axle 1 Right',
+    30: 'Trailer #3 Brake Stroke, Axle 2 Left',
+    31: 'Trailer #3 Brake Stroke, Axle 2 Right',
+    32: 'Trailer #3 Brake Stroke, Axle 3 Left',
+    33: 'Trailer #3 Brake Stroke, Axle 3 Right',
+    34: 'Trailer #3 Brake Stroke, Axle 4 Left',
+    35: 'Trailer #3 Brake Stroke Axle 4 Right',
+    36: 'Trailer #3 Brake Stroke Alert Monitor',
+    37: 'Trailer Brake Stroke, Axle 1 Left',
+    38: 'Trailer Brake Stroke, Axle 1 Right',
+    39: 'Trailer Brake Stroke, Axle 2 Left',
+    40: 'Trailer Brake Stroke, Axle 2 Right',
+    41: 'Trailer Brake Stroke, Axle 3 Left',
+    42: 'Trailer Brake Stroke, Axle 3 Right',
+    43: 'Trailer Brake Stroke, Axle 4 Left',
+    44: 'Trailer Brake Stroke, Axle 4 Right',
+    45: 'Trailer Brake Stroke Alert Monitor',
+    range(46, 150): 'Reserved',
+})
 
 
 mid_to_sid_map = {
@@ -1947,6 +1193,7 @@ mid_to_sid_map = {
     217: tractor_trailer_bridge_sids,
     218: tractor_trailer_bridge_sids,
     219: collision_avoidance_systems_sids,
+    222: driveline_retarder_sids,
     223: transmission_sids,
     232: safety_restraint_system_sids,
     234: instrument_panel_sids,
@@ -1959,7 +1206,7 @@ mid_to_sid_map = {
 
 
 def get_sid_string(mid, sid):
-    sid_table = mid_to_sid_map.get(mid, common_sids)
+    sid_table = mid_to_sid_map.get(sid, common_sids)
 
     if isinstance(sid_table, tuple):
         for table in sid_table:
