@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-
-import argparse
-import j1708
+from .j1708 import J1708, Iface, find_device
 
 
 def main():
@@ -18,14 +15,10 @@ def main():
     args = parser.parse_args()
 
     if args.reparse_log:
-        iface = j1708.Iface()
+        iface = Iface()
         iface.reparse_log(args.reparse_log, not args.no_decode, args.ignore_checksums)
     else:
-        port = j1708.find_device()
+        port = find_device()
         assert port
-        iface = j1708.Iface(port)
+        iface = Iface(port)
         iface.run(not args.no_decode, args.ignore_checksums)
-
-
-if __name__ == '__main__':
-    main()
