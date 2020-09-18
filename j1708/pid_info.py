@@ -3878,4 +3878,4 @@ _pid_info = {
 
 
 def get_pid_info(pid):
-    return _pid_info.get(pid, None)
+    return _pid_info[pid]

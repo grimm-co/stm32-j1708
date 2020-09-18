@@ -3,6 +3,7 @@ import serial.tools.list_ports
 
 from .j1708 import Iface, decode_and_print
 from .msg import J1708
+from .rs485util import parse485log
 
 
 def find_device():

@@ -1,4 +1,5 @@
 import time
+import string
 import re
 import struct
 
@@ -35,20 +36,21 @@ def make_pid_list_string(pid, value, **kwargs):
         #    if all(f.name.endswith('_OFF') for f in value):
         #        return f'    {pid["raw"].hex().upper()}: NONE'
         #except AttributeError:
-        #    pass
-
-        prefix_str = f'    {pid["raw"].hex().upper()}: '
+        #    pass 
+        prefix_str = f'\n    {pid["raw"].hex().upper()}:'
         formatted_values = []
         for val in value:
-            formattedstr = format_pid_value(**kwargs, pid=pid, value=val)
-            # Drop the leading spaces from the formatted value
-            formatted_values.append(_whitespace_pat.sub('', formattedstr))
+            formatted = format_pid_value(**kwargs, pid=pid, value=val)
+            # Remove any leading whitespace from the formatted value
+            formatted_values.append(_whitespace_pat.sub('', formatted))
 
-        #space_prefix = ' ' * len(prefix_str)
-        #pid_strs = ['\n' + prefix_str + formatted_values[0]]
-        #pid_strs.extend(space_prefix + entry for entry in formatted_values[1:])
-        #return '\n'.join(pid_strs)
-        return '\n' + prefix_str + ', '.join(formatted_values)
+        all_one_line = prefix_str + ' ' + ', '.join(formatted_values)
+        if len(all_one_line) < 60:
+            return all_one_line
+        else:
+            # If the value on one line is > 60 chars place each formatted value 
+            # into it's own line
+            return prefix_str + '\n      ' + '\n      '.join(formatted_values)
 
 
 def make_pid_bytes_string(value, **kwargs):
@@ -99,11 +101,14 @@ class J1708(object):
 
     @classmethod
     def make(cls, data, ignore_checksum=False):
-        # Convert from printable hex to actual bytes
-        if isinstance(data, bytes):
-            msg = bytes.fromhex(data.decode('latin-1'))
+        if all(chr(c) in string.hexdigits for c in data):
+            # Convert from printable hex to actual bytes
+            if isinstance(data, bytes):
+                msg = bytes.fromhex(data.decode('latin-1'))
+            else:
+                msg = bytes.fromhex(data)
         else:
-            msg = bytes.fromhex(data)
+            msg = data
 
         # If the message is valid calculating a checksum over the message and 
         # current checksum will add up to 0.
@@ -133,9 +138,9 @@ class J1708(object):
 
     def format_for_log(self):
         self.decode()
-        out = f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}\n'
+        out = f'{self.mid["name"]} ({self.mid["mid"]}): {self}'
         for pid in self.pids:
-            out += f'  {pid["pid"]}: {pid["name"]}'
+            out += f'\n  {pid["pid"]}: {pid["name"]}'
             out += format_pid_value(mid=self.mid, pid=pid, value=pid['value'])
         return out
 

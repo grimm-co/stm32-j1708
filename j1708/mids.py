@@ -51,7 +51,7 @@ msgs = RangeDict({
     151: 'Suspension, Trailer',
     range(152, 153): '(Reclaimed)',
     154: 'Diagnostic Systems, Power Unit',
-155: 'Diagnostic Systems, Trailer',
+    155: 'Diagnostic Systems, Trailer',
     156: '(Reclaimed)',
     157: 'Park Brake Controller',
     158: 'Electrical Charging System',
@@ -154,9 +154,21 @@ msgs = RangeDict({
 })
 
 
+def is_valid(mid):
+    try:
+        mid_name = msgs[mid]
+    except KeyError:
+        return False
+
+    if mid_name not in ('Reserved', '(Reclaimed)'):
+        return True
+    else:
+        return False
+
+
 def get_mid_name(mid):
     try:
-        return msgs.get(mid)
+        return msgs[mid]
     except KeyError:
         return f'Unknown MID {mid}'
 
@@ -175,4 +187,5 @@ def extract(data):
 __all__ = [
     'extract',
     'get_mid_name',
+    'is_valid',
 ]

@@ -6,8 +6,7 @@ from .msg import J1708
 
 def decode_and_print(raw_msg, decode=True, ignore_checksums=False):
     j1708_msg = J1708.make(raw_msg, ignore_checksums)
-
-    if j1708_msg.is_valid():
+    if j1708_msg is not None and j1708_msg.is_valid():
         try:
             if decode:
                 print(j1708_msg.format_for_log())

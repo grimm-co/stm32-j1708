@@ -89,11 +89,11 @@ def extract(data):
         pid_char = data[3]
         pid = 768 + pid_char
         start = 4
-    elif len(data) >= 4 and data[:2] == b'\xff\xff':
+    elif len(data) >= 3 and data[:2] == b'\xff\xff':
         pid_char = data[2]
         pid = 512 + pid_char
         start = 3
-    elif len(data) >= 4 and data[:1] == b'\xff':
+    elif len(data) >= 2 and data[:1] == b'\xff':
         pid_char = data[1]
         pid = 256 + pid_char
         start = 2
@@ -103,7 +103,7 @@ def extract(data):
         start = 1
     else:
         # Invalid
-        return (None, rest)
+        return (None, data)
 
     if pid_char in range(0, 128):
         data_len = 1
@@ -122,10 +122,16 @@ def extract(data):
         end = start + data_len
 
     val_bytes = data[start:end]
+
+    # Ensure that the bytes extracted is the expected size
+    assert len(val_bytes) == data_len
+
     value = None
     pid_info = get_pid_info(pid)
+
     if val_bytes == b'\xff' * data_len:
         value = f'{val_bytes.hex().upper()}: Not Available'
+
     elif 'resolution' in pid_info:
         if isinstance(pid_info['resolution'], Fraction) and \
                 val_bytes != b'\xff' * data_len:

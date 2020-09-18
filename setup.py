@@ -9,7 +9,10 @@ setup(
     name='j1708',
     packages=find_packages(),
     entry_points={
-        'console_scripts': ['j1708dump=j1708:main'],
+        'console_scripts': [
+            'j1708dump=j1708:main',
+            'parse485log=j1708:parse485log',
+        ],
     },
     install_requires=required,
 )

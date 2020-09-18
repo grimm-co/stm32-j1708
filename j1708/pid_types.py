@@ -236,7 +236,7 @@ class FMI(enum.IntEnum):
     ERRATIC_OR_INCORRECT             = 2
     VOLTAGE_HIGH_OR_SHORTED_HIGH     = 3
     VOLTAGE_LOW_OR_SHORTED_LOW       = 4
-    CURRENT__OR_OPEN_CIRCUIT         = 5
+    CURRENT_LOW_OR_OPEN_CIRCUIT      = 5
     CURRENT_HIGH_OR_GROUNDED_CIRCUIT = 6
     MECHANICAL_SYSTEM_NOT_RESPONDING = 7
     ABNORMAL_FREQ_PWM_OR_PERIOD      = 8
@@ -484,6 +484,7 @@ class DTC(object):
             self.active = False
 
         if DTCCode.COUNT_INCL in self.code['flags']:
+            assert count is not None
             self.count = count
         else:
             self.count = None
@@ -511,11 +512,16 @@ class DTC(object):
         dtcs = []
         rest = msg_body
         while rest:
-            new_dtc = cls(rest[0], rest[1], rest[2])
+            if len(rest) >= 3:
+                new_dtc = cls(rest[0], rest[1], rest[2:])
+            else:
+                new_dtc = cls(rest[0], rest[1])
+
             if new_dtc.count is None:
                 rest = rest[2:]
             else:
                 rest = rest[3:]
+
             dtcs.append(new_dtc)
         return dtcs
 

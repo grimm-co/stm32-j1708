@@ -386,6 +386,6 @@ _pids = RangeDict({
 
 def get_pid_name(pid):
     try:
-        return _pids.get(pid)
+        return _pids[pid]
     except KeyError:
         return f'Unknown PID {pid}'
