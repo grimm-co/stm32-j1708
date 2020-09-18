@@ -1,6 +1,14 @@
 import argparse
 
-from .j1708 import J1708, Iface, find_device
+from .j1708 import J1708, Iface, find_device, decode_and_print
+
+
+__all__ = [
+    'J1708',
+    'Iface',
+    'find_device',
+    'decode_and_print',
+]
 
 
 def main():

@@ -1,3 +1,4 @@
+import time
 import re
 import struct
 import serial
@@ -85,13 +86,18 @@ def format_pid_value(value, **kwargs):
 
 
 class J1708(object):
-    def __init__(self, msg, checksum=None):
+    def __init__(self, msg, checksum=None, timestamp=None):
         self.msg = msg
         self.checksum = checksum
 
         self.mid = None
         self.body = None
         self.pids = None
+
+        if timestamp is None:
+            self.time = time.time()
+        else:
+            self.time = timestamp
 
     @classmethod
     def calc_checksum(cls, msg):
@@ -136,20 +142,66 @@ class J1708(object):
                     self.pids.append(param)
                 else:
                     # This message is invalid
-                    print(f'WARNING: unable to extract valid PID from {body}')
-                    break
+                    raise ValueError(f'WARNING: unable to extract valid PID from {body}')
 
-        print(f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}')
+    def format_for_log(self):
+        self.decode()
+        out = f'\n{self.mid["name"]} ({self.mid["mid"]}): {self}\n'
         for pid in self.pids:
-            pid_str = f'  {pid["pid"]}: {pid["name"]}'
-            pid_str += format_pid_value(mid=self.mid, pid=pid, value=pid['value'])
-            print(pid_str)
+            out += f'  {pid["pid"]}: {pid["name"]}'
+            out += format_pid_value(mid=self.mid, pid=pid, value=pid['value'])
+        return out
+
+    def encode(self):
+        # If there is no message defined yet, encode the mid and pids into 
+        # a message
+        if self.msg is None:
+            raise NotImplementedError
+
+        # If this message is not valid, update the checksum now and then append 
+        # it to the message bytes
+        if not self.is_valid():
+            self.update_checksum()
+
+        # In theory the struck.pack method is the fastest way to convert an 
+        # integer to a single byte
+        return self.msg + struct.pack('>B', self.checksum)
 
     def __str__(self):
         if self.checksum is not None:
             return f'{self.msg.hex().upper()} ({self.checksum:X})'
         else:
             return f'{self.msg.hex().upper()} ({self.checksum})'
+
+    def export(self):
+        self.decode()
+        obj = {
+            'time': self.time,
+            'mid': self.mid['mid'],
+            'checksum': self.checksum,
+            'pids': self.pids,
+        }
+        return obj
+
+    def json(self):
+        return json.dumps(self.export())
+
+
+def decode_and_print(raw_msg, decode=True, ignore_checksums=False):
+    j1708_msg = J1708.make(raw_msg, ignore_checksums)
+
+    if j1708_msg.is_valid():
+        try:
+            if decode:
+                print(j1708_msg.format_for_log())
+            else:
+                print(j1708_msg)
+        except ValueError:
+            print(f'INVALID MSG: {j1708_msg}')
+    else:
+        print(f'INVALID CHECKSUM: {j1708_msg}')
+
+    return j1708_msg
 
 
 class Iface(object):
@@ -203,14 +255,7 @@ class Iface(object):
             elif incoming and char != self._eom:
                 msg += char
             elif incoming and char == self._eom:
-                j1708_msg = J1708.make(msg, ignore_checksums)
-                if j1708_msg.is_valid():
-                    if decode:
-                        j1708_msg.decode()
-                    else:
-                        print(j1708_msg)
-                else:
-                    print(f'INVALID: {j1708_msg}')
+                decode_and_print(msg, decode=decode, ignore_checksums=ignore_checksums)
 
                 # Clear the message
                 msg = b''
@@ -228,14 +273,7 @@ class Iface(object):
                     else:
                         msg = msgbody + msgchksum
 
-                    j1708_msg = J1708.make(msg, ignore_checksums)
-                    if j1708_msg.is_valid():
-                        if decode:
-                            j1708_msg.decode()
-                        else:
-                            print(j1708_msg)
-                    else:
-                        print(f'INVALID: {j1708_msg}')
+                    decode_and_print(msg, ignore_checksums)
 
                     # Clear the message
                     msg = b''
