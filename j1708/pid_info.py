@@ -1603,7 +1603,7 @@ _pid_info = {
         'priority': '8',
         'range': '0 to 65535',
         'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'type': pid_types.AuxInputStatus2,
     },
     155: {
         'length': '2 characters',
@@ -1613,7 +1613,7 @@ _pid_info = {
         'priority': '8',
         'range': '0 to 65535',
         'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'type': pid_types.AuxInputStatus1,
     },
     156: {
         'length': '2 characters',
@@ -2055,7 +2055,7 @@ _pid_info = {
         'priority': '8',
         'range': '0 to 255',
         'resolution': 'binary',
-        'type': 'binary bit-mapped',
+        'type': pid_types.DTCResponse,
     },
     199: {
         'length': 'variable',
