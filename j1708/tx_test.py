@@ -4,14 +4,9 @@ import time
 import serial.tools.list_ports
 import j1708
 
-def find_device():
-    for p in serial.tools.list_ports.grep('0483:5740'): 
-        if 'j1708' in p.manufacturer:
-            return p.device
-
 
 def main():
-    port = find_device()
+    port = j1708.find_device()
     iface = j1708.Iface(port)
 
     # choosing a MID to send as: 142 "Vehicle Management System" (0x8E)
@@ -21,7 +16,7 @@ def main():
     test_msg = bytes.fromhex('8e6064')
     while True:
         iface.send(test_msg)
-        time.sleep(0.5)
+        time.sleep(1.0)
 
 
 if __name__ == '__main__':

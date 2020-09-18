@@ -9,7 +9,7 @@ setup(
     name='j1708',
     packages=find_packages(),
     entry_points={
-        'console_scripts': ['j1708=j1708:main'],
+        'console_scripts': ['j1708dump=j1708:main'],
     },
     install_requires=required,
 )

@@ -1,7 +1,7 @@
 from fractions import Fraction
 
-from utils import RangeDict
-import pid_types
+from .utils import RangeDict
+from . import pid_types
 
 
 _pid_info = {

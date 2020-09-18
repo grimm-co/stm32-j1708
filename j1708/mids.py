@@ -1,4 +1,4 @@
-from utils import RangeDict
+from .utils import RangeDict
 
 msgs = RangeDict({
     range(0, 7): 'J1708: Engine',

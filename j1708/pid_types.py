@@ -2,9 +2,9 @@ import enum
 import functools
 import struct
 
-from mids import get_mid_name
-from pid_name import get_pid_name
-from sid_consts import get_sid_string
+from .mids import get_mid_name
+from .pid_name import get_pid_name
+from .sid_consts import get_sid_string
 
 
 def get_mask_offset(mask):

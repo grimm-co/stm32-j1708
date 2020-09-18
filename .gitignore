@@ -6,3 +6,4 @@
 *.out
 *.bin
 __pycache__/
+*.egg-info/

@@ -1,13 +1,12 @@
-import inspect
 import re
 import struct
 import serial
 import serial.tools.list_ports
 
-import mids
-import pids
-from sid_consts import *
-from pid_types import *
+from . import mids
+from . import pids
+from .sid_consts import *
+from .pid_types import *
 
 
 def find_device():

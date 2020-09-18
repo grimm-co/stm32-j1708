@@ -1,4 +1,4 @@
-from utils import RangeDict
+from .utils import RangeDict
 
 
 common_sids = RangeDict({
