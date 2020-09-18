@@ -1,3 +1,22 @@
+# Usage
+You can capture J1708 messages by connecting the STM32 board to the J1708 bus, 
+connecting USB to your computer and running:
+```
+$ j1708dump
+```
+
+If you don't want the J1708 messages decoded you can supply the `-N` option:
+```
+$ j1708dump -N
+```
+
+# Programming
+If you have an STLinkV2 programmer connected to your target board you can 
+program it with the following command:
+```
+$ make flash
+```
+
 # About
 USB CDC driver adapted from the libopencm3 USB CDC ACM, USART, and timer 
 examples:
@@ -12,3 +31,4 @@ This code works with an STM32 "bluepill" (STM32F103C8T6) board wired to
 a copperhill SAE J1708 breakout board on USART1 (PA9 for Tx, PA10 for Rx):
 - https://stm32-base.org/boards/STM32F103C8T6-Blue-Pill.html
 - https://copperhilltech.com/sae-j1708-to-uart-breakout-board
+
