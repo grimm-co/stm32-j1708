@@ -1,6 +1,19 @@
 import argparse
+import serial.tools.list_ports
 
-from .j1708 import J1708, Iface, find_device, decode_and_print
+from .j1708 import Iface, decode_and_print
+from .msg import J1708
+
+
+def find_device():
+    """
+    Identifies if there are any USB devices that match the VID:PID and device
+    strings expected for the J1708 tool.
+    """
+    for p in serial.tools.list_ports.grep('0483:5740'): 
+        if 'j1708' in p.manufacturer.lower():
+            return p.device
+    return None
 
 
 __all__ = [
