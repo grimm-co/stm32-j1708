@@ -1157,67 +1157,61 @@ brake_stroke_alert_monitor_tractor_sids = RangeDict({
 
 
 mid_to_sid_map = {
-    128: engine_sids,
-    130: transmission_sids,
-    136: brake_sids,
-    137: brake_sids,
-    138: brake_sids,
-    139: brake_sids,
-    140: instrument_panel_sids,
-    142: vehicle_management_sids,
-    142: fuel_system_sids,
-    146: cab_climate_control_sids,
-    150: suspension_sids,
-    151: suspension_sids,
-    157: park_brake_controller_sids,
-    162: vehicle_navigation_sids,
-    162: vehicle_security_sids,
-    166: tire_sids,
-    168: tire_sids,
-    169: tire_sids,
-    175: engine_sids,
-    176: transmission_sids,
-    176: particulate_trap_sids,
-    178: vehicle_sensors_to_data_converter_sids,
-    183: engine_sids,
-    184: engine_sids,
-    185: engine_sids,
-    186: (engine_sids, tire_sids),
-    187: vehicle_management_sids,
-    188: vehicle_management_sids,
-    190: refrigerant_management_systems_sids,
-    191: vehicle_navigation_sids,
-    200: cab_climate_control_sids,
-    217: tractor_trailer_bridge_sids,
-    218: tractor_trailer_bridge_sids,
-    219: collision_avoidance_systems_sids,
-    222: driveline_retarder_sids,
-    223: transmission_sids,
-    232: safety_restraint_system_sids,
-    234: instrument_panel_sids,
-    246: brake_sids,
-    247: brake_sids,
-    248: forward_road_image_processor_sids,
-    253: brake_stroke_alert_monitor_tractor_sids,
-    254: safety_restraint_system_sids,
+    128: (engine_sids, common_sids),
+    130: (transmission_sids, common_sids),
+    136: (brake_sids, common_sids),
+    137: (brake_sids, common_sids),
+    138: (brake_sids, common_sids),
+    139: (brake_sids, common_sids),
+    140: (instrument_panel_sids, common_sids),
+    142: (vehicle_management_sids, common_sids),
+    142: (fuel_system_sids, common_sids),
+    146: (cab_climate_control_sids, common_sids),
+    150: (suspension_sids, common_sids),
+    151: (suspension_sids, common_sids),
+    157: (park_brake_controller_sids, common_sids),
+    162: (vehicle_navigation_sids, common_sids),
+    162: (vehicle_security_sids, common_sids),
+    166: (tire_sids, common_sids),
+    168: (tire_sids, common_sids),
+    169: (tire_sids, common_sids),
+    175: (engine_sids, common_sids),
+    176: (transmission_sids, common_sids),
+    176: (particulate_trap_sids, common_sids),
+    178: (vehicle_sensors_to_data_converter_sids, common_sids),
+    183: (engine_sids, common_sids),
+    184: (engine_sids, common_sids),
+    185: (engine_sids, common_sids),
+    186: ((engine_sids, tire_sids), common_sids),
+    187: (vehicle_management_sids, common_sids),
+    188: (vehicle_management_sids, common_sids),
+    190: (refrigerant_management_systems_sids, common_sids),
+    191: (vehicle_navigation_sids, common_sids),
+    200: (cab_climate_control_sids, common_sids),
+    217: (tractor_trailer_bridge_sids, common_sids),
+    218: (tractor_trailer_bridge_sids, common_sids),
+    219: (collision_avoidance_systems_sids, common_sids),
+    222: (driveline_retarder_sids, common_sids),
+    223: (transmission_sids, common_sids),
+    232: (safety_restraint_system_sids, common_sids),
+    234: (instrument_panel_sids, common_sids),
+    246: (brake_sids, common_sids),
+    247: (brake_sids, common_sids),
+    248: (forward_road_image_processor_sids, common_sids),
+    253: (brake_stroke_alert_monitor_tractor_sids, common_sids),
+    254: (safety_restraint_system_sids, common_sids),
 }
 
 
 def get_sid_string(mid, sid):
-    sid_table = mid_to_sid_map.get(sid, common_sids)
+    sid_table = mid_to_sid_map.get(mid['mid'], common_sids)
 
-    if isinstance(sid_table, tuple):
-        for table in sid_table:
-            try:
-                return table[sid]
-            except KeyError:
-                pass
-        return f'Unknown SID {sid} for MID {mid}'
-    else:
+    for table in sid_table:
         try:
-            return sid_table[sid]
+            return table[sid]
         except KeyError:
-            return f'Unknown SID {sid} for MID {mid}'
+            pass
+    return f'Unknown SID {sid} for MID {mid}'
 
 
 __all__ = [

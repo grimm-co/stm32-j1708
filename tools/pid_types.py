@@ -492,9 +492,9 @@ class DTC(object):
 
     def format(self, mid, **kwargs):
         if self.active:
-            value_str = 'ACTIVE    '
+            value_str = 'ACTIVE   '
         else:
-            value_str = 'INACTIVE  '
+            value_str = 'INACTIVE '
         if self.sid is not None:
             sid_str = get_sid_string(mid, self.sid)
             value_str += f'SID {self.sid} ({sid_str}): '
@@ -581,8 +581,81 @@ class DTCRequest(object):
 
     @classmethod
     def decode(cls, msg_body):
+        num_bytes = msg_body[0]
         return cls(msg_body[0], msg_body[1], msg_body[2])
 
     @classmethod
     def encode(cls, *args, **kwargs):
         raise NotImplementedError
+
+
+# PID: 196
+class DTC_RESP_TYPE(enum.IntEnum):
+    ASCII_RESPONSE        = 0
+    DTC_CLEARED           = 1
+    ALL_DTCS_CLEARED      = 2
+    DIAG_INFO             = 3
+
+
+class DTCResponseCode(StatusGroupEnumAndValue):
+    # The bit range for the "Value" portion of the PID, the value must be an 
+    # integer even though it won't be used.
+    FMI           = (0, 0x0F, True)
+    DTC_RESP_TYPE = (1, 0xC0, True)
+
+    # As always, use the bits that don't matter in the value fields to ensure 
+    # that the "value" for each enum is unique.
+    STANDARD                   = (0b00111111, 0x20)
+    EXTENDED                   = (0b00011111, 0x20)
+    SID_INCL                   = (0b11110000, 0x10)
+    PID_INCL                   = (0b11100000, 0x10)
+
+
+class DTCResponse(object):
+    def __init__(self, pid_sid_byte, code, info):
+        self.code = DTCResponseCode.decode(code)
+
+        if DTCResponseCode.EXTENDED in self.code['flags']:
+            self.ext = True
+            pid_sid_byte += 256
+        else:
+            self.ext = False
+
+        if DTCResponseCode.SID_INCL in self.code['flags']:
+            self.pid = None
+            self.sid = pid_sid_byte
+        else:
+            self.pid = pid_sid_byte
+            self.sid = None
+
+        self.fmi = FMI(self.code['FMI'])
+        self.type = DTC_RESP_TYPE(self.code['DTC_RESP_TYPE'])
+        self.info = info
+
+    def format(self, **kwargs):
+        mid_str = get_mid_name(self.mid)
+        if self.type == DTC_RESP_TYPE.ALL_DTCS_CLEARED:
+            return f'{self.type.name}'
+        elif self.type == DTC_RESP_TYPE.DTC_CLEARED:
+            if self.sid is not None:
+                sid_str = get_sid_string(mid, self.sid)
+                return f'{self.type.name} SID {self.sid} ({sid_str})'
+            else:
+                pid_str = get_pid_name(self.pid)
+                return f'{self.type.name} PID {self.pid} ({pid_str})'
+        elif self.type == DTC_RESP_TYPE.ASCII_RESPONSE:
+            ascii_resp = self.info.decode('latin-1')
+            return f'{self.type.name}: {ascii_resp}'
+        else:
+            return f'{self.type.name}: {self.info.hex()}'
+
+    @classmethod
+    def decode(cls, msg_body):
+        num_bytes = msg_body[0]
+        return cls(msg_body[1], msg_body[2], msg_body[3:3 + num_bytes])
+
+    @classmethod
+    def encode(cls, *args, **kwargs):
+        raise NotImplementedError
+
+

@@ -16,6 +16,7 @@ class RangeDict(dict):
                     return value
             elif match_key == key:
                 return value
+        raise KeyError
 
     def __len__(self):
         keylen = 0
