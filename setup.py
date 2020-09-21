@@ -2,6 +2,8 @@
 
 from setuptools import setup, find_packages
 
+__version__ = 
+
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
@@ -15,4 +17,6 @@ setup(
         ],
     },
     install_requires=required,
+    version='0.0.1',
+    python_requires='>=3.8',
 )

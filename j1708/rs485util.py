@@ -40,27 +40,31 @@ def parse(filename):
             offset += 1
 
             if len(raw_msg) >= 4:
-                # Technically 2 bytes is a valid message, but it seems unlikely 
-                # we will see that so to make it easier to "guess" what a valid 
-                # message is don't start checking for a valid checksum/end of 
-                # message until the message size reaches 4 bytes
-                j1708_msg = J1708.make(raw_msg)
-                if j1708_msg is not None and j1708_msg.is_valid():
-                    # Attempt to decode the message before we really consider it 
-                    # valid
-                    j1708_msg.decode()
-                    found_msgs.append(j1708_msg)
+                try:
+                    # Technically 2 bytes is a valid message, but it seems 
+                    # unlikely we will see that so to make it easier to "guess" 
+                    # what a valid message is don't start checking for a valid 
+                    # checksum/end of message until the message size reaches 
+                    # 4 bytes
+                    j1708_msg = J1708(raw_msg)
+                    if j1708_msg is not None and j1708_msg.is_valid():
+                        # Attempt to decode the message before we really consider it 
+                        # valid
+                        j1708_msg.decode()
+                        found_msgs.append(j1708_msg)
 
-                    # Record the end offset
-                    end_offset = offset
+                        # Record the end offset
+                        end_offset = offset
 
-                    # Prefix the message with the offset it was found at
-                    start_offset = offset - len(raw_msg)
-                    print(f'[{start_offset:08X}] {j1708_msg.format_for_log()}')
+                        # Prefix the message with the offset it was found at
+                        start_offset = offset - len(raw_msg)
+                        print(f'[{start_offset:08X}] {j1708_msg.format_for_log()}')
 
-                    # Clear the message
-                    raw_msg = bytearray()
-                    incoming = False
+                        # Clear the message
+                        raw_msg = bytearray()
+                        incoming = False
+                except ValueError:
+                    pass
 
             if len(raw_msg) >= 21:
                 # max msg length is 21 bytes, if we've reached this length and 

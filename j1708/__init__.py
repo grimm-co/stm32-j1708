@@ -1,7 +1,7 @@
 import argparse
 import serial.tools.list_ports
 
-from .j1708 import Iface, decode_and_print
+from .iface import Iface, decode_and_print
 from .msg import J1708
 from .rs485util import parse485log
 
@@ -36,6 +36,8 @@ def main():
             help='ignore checksums when parsing J1708 messages')
     parser.add_argument('--reparse-log', '-r',
             help='read J1708 messages from an existing log and re-parse them')
+    parser.add_argument('--output-log', '-o',
+            help='Save output to a log file')
     args = parser.parse_args()
 
     if args.reparse_log:
@@ -45,4 +47,8 @@ def main():
         port = find_device()
         assert port
         iface = Iface(port)
-        iface.run(not args.no_decode, args.ignore_checksums)
+        try:
+            iface.run(not args.no_decode, args.ignore_checksums, args.output_log)
+        except KeyboardInterrupt:
+            # Add a return char to help make the next command prompt look nice
+            print('')

@@ -137,14 +137,35 @@ def extract(data):
                 val_bytes != b'\xff' * data_len:
             # First byte swap the data (it's in little endian) and then multiply 
             # by the resolution
-            res = pid_info['resolution']
-            le_val = int.from_bytes(val_bytes, 'little')
-            fractional_val = le_val * res
+            if data_len == 1:
+                if pid_info['type'].startswith('signed'):
+                    le_val = struct.unpack('<b', val_bytes)
+                else:
+                    le_val = struct.unpack('<B', val_bytes)
+            elif data_len == 2:
+                if pid_info['type'].startswith('signed'):
+                    le_val = struct.unpack('<h', val_bytes)
+                else:
+                    le_val = struct.unpack('<H', val_bytes)
+            elif data_len == 4:
+                if pid_info['type'].startswith('signed'):
+                    le_val = struct.unpack('<l', val_bytes)
+                else:
+                    le_val = struct.unpack('<L', val_bytes)
+            elif data_len == 8:
+                if pid_info['type'].startswith('signed'):
+                    le_val = struct.unpack('<q', val_bytes)
+                else:
+                    le_val = struct.unpack('<Q', val_bytes)
+            else:
+                raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({pid_info})')
+
+            fractional_val = float(le_val[0] * pid_info['resolution'])
 
             if 'units' in pid_info:
-                value = f'{float(fractional_val)} {pid_info["units"]} ({val_bytes.hex().upper()})'
+                value = f'{fractional_val} {pid_info["units"]} ({val_bytes.hex().upper()})'
             else:
-                value = f'{float(fractional_val)} ({val_bytes.hex().upper()})'
+                value = f'{fractional_val} ({val_bytes.hex().upper()})'
 
         elif hasattr(pid_info['type'], 'decode'):
             value = pid_info['type'].decode(val_bytes)
@@ -166,3 +187,122 @@ def extract(data):
     rest = data[end:]
 
     return (obj, rest)
+
+
+def _encode_value(pid, value, size):
+    pid_info = get_pid_info(pid)
+    if isinstance(value, bytes):
+        if size is not None:
+            assert len(value) == size
+        return value
+
+    elif hasattr(pid_info['type'], 'encode'):
+        data = pid_info['type'].encode(value)
+        if size is not None:
+            assert len(data) == size
+        return data
+
+    elif size is not None and value is None:
+        return b'\xff' * size
+
+    elif size is not None and \
+            'resolution' in pid_info and \
+            isinstance(pid_info['resolution'], Fraction):
+
+        # convert the value to an integer
+        le_val = int(value * pid_info['resolution'])
+
+        # Then turn it into bytes here, because PID values are encoded 
+        # little-endian, but the placement of the values in the message are in 
+        # big-endian order.
+        if size == 1:
+            if pid_info['type'].startswith('signed'):
+                return struct.pack('<b', le_val)
+            else:
+                return struct.pack('<B', le_val)
+        elif size == 2:
+            if pid_info['type'].startswith('signed'):
+                return struct.pack('<h', le_val)
+            else:
+                return struct.pack('<H', le_val)
+        elif size == 4:
+            if pid_info['type'].startswith('signed'):
+                return struct.pack('<l', le_val)
+            else:
+                return struct.pack('<L', le_val)
+        elif size == 8:
+            if pid_info['type'].startswith('signed'):
+                return struct.pack('<q', le_val)
+            else:
+                return struct.pack('<Q', le_val)
+        else:
+            raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({pid_info})')
+
+    else:
+        # All other types must have an explicit size to be able to be encoded
+        raise ValueError(f'Cannot encode PID {pid} = {value} ({pid_info})')
+
+
+def _encode_pid(pid, value):
+    pid_char = pid['pid'] % 256
+
+    if pid <= 256:
+        fmt = 'BBBB'
+        parts = [0xff, 0xff, 0xff, pid_chr]
+    elif pid <= 512:
+        fmt = 'BBB'
+        parts = [0xff, 0xff, pid_chr]
+    elif pid <= 768:
+        fmt = 'BB'
+        parts = [0xff, pid_chr]
+    else:
+        fmt = 'B'
+        parts = [pid_chr]
+
+    if pid_char in range(0, 128):
+        # 1-byte PID value
+        fmt += '1s'
+        parts.append(_encode_value(pid, value, 1))
+
+    elif pid_char in range(128, 192):
+        # 2-byte PID value
+        fmt += '2s'
+        parts.append(_encode_value(pid, value, 1))
+
+    elif pid_char == 254:
+        # PID 254 is variable length with no length field
+        encoded_value = _encode_value(pid, value, None)
+        fmt += f'{len(encoded_value)}s'
+        parts.append(encoded_value)
+
+    else:
+        # All other values are variable length
+        encoded_value = _encode_value(pid, value, None)
+        fmt += f'B{len(encoded_value)}s'
+        parts.extend(len(encoded_value), encoded_value)
+
+    return 
+
+
+def encode(pids):
+    if not isinstance(pids, list):
+        pids = [pids]
+
+    # PID 254's length is "the rest of the message" so ensure that if PID 254 is 
+    # in the list that it is the last pid
+    if any(p['pid'] == 254 for p in pids) and pids[-1]['pid'] != 254:
+        pidlist = [p['pid'] for p in pids]
+        errmsg = f'PID 254 must be last: {pidlist}'
+        raise ValueError(errmsg)
+
+    # Integer data fields in J1708 are little-endian, but the message fields are 
+    # extracted from the message in big-endian order (WTF people)
+    fmt = '>'
+    parts = []
+    for pid in pids:
+        ret = _encode_pid(pid['pid'], pid['value'])
+        fmt += ret[0]
+        parts += ret[1]
+
+    # Now encode the message
+    return struct.pack(fmt, *parts)

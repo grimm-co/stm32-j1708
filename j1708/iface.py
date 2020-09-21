@@ -4,20 +4,26 @@ import serial
 from .msg import J1708
 
 
-def decode_and_print(raw_msg, decode=True, explicit_flags=False, ignore_checksums=False):
-    j1708_msg = J1708.make(raw_msg, ignore_checksums)
-    if j1708_msg is not None and j1708_msg.is_valid():
-        try:
-            if decode:
-                print(j1708_msg.format_for_log(explicit_flags))
-            else:
-                print(j1708_msg)
-        except ValueError:
-            print(f'INVALID MSG: {j1708_msg}')
-    else:
-        print(f'INVALID CHECKSUM: {j1708_msg}')
+def _print_and_log(msg, log=None):
+    if log:
+        log.write(msg)
+    print(msg)
 
-    return j1708_msg
+
+def decode_and_print(raw_msg, decode=True, explicit_flags=False, ignore_checksums=False, log=None):
+    try:
+        j1708_msg = J1708(raw_msg, ignore_checksums)
+        if j1708_msg is not None and j1708_msg.is_valid():
+                if decode:
+                    _print_and_log(j1708_msg.format_for_log(explicit_flags), log=log)
+                else:
+                    _print_and_log(str(j1708_msg), log=log)
+        else:
+            _print_and_log(f'INVALID CHECKSUM: {j1708_msg}', log=log)
+        return j1708_msg
+    except ValueError:
+        _print_and_log(f'INVALID MSG: {raw_msg.hex()}', log=log)
+        return None
 
 
 class Iface(object):
@@ -61,7 +67,12 @@ class Iface(object):
         read_bytes = self.serial.in_waiting
         return self.serial.read(read_bytes)
 
-    def run(self, decode=True, ignore_checksums=False):
+    def run(self, decode=True, ignore_checksums=False, log_filename=None):
+        if log_filename:
+            log = open(log_filename, 'w')
+        else:
+            log = None
+
         msg = b''
         incoming = False
         while True:
@@ -71,7 +82,7 @@ class Iface(object):
             elif incoming and char != self._eom:
                 msg += char
             elif incoming and char == self._eom:
-                decode_and_print(msg, decode=decode, ignore_checksums=ignore_checksums)
+                decode_and_print(msg, decode=decode, ignore_checksums=ignore_checksums, log=log)
 
                 # Clear the message
                 msg = b''

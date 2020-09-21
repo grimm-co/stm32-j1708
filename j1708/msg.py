@@ -34,10 +34,14 @@ def make_pid_dict_string(value, explicit_flags=False, **kwargs):
 
 _whitespace_pat = re.compile(r'^\s+')
 def make_pid_list_string(pid, value, explicit_flags=False, **kwargs):
-    if len(value) == 0:
-        return f'\n    {pid["raw"].hex().upper()}: NONE'
-    else:
+    if 'raw' in pid:
         prefix_str = f'\n    {pid["raw"].hex().upper()}:'
+    else:
+        prefix_str = f'\n    '
+
+    if len(value) == 0:
+        return f'{prefix_str} NONE'
+    else:
         formatted_values = []
         for val in value:
             formatted = format_pid_value(**kwargs, pid=pid, value=val, explicit_flags=explicit_flags)
@@ -79,18 +83,25 @@ def format_pid_value(value, **kwargs):
 
 
 class J1708(object):
-    def __init__(self, msg, checksum=None, timestamp=None):
-        self.msg = msg
-        self.checksum = checksum
-
+    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, ignore_checksum=False):
+        self.msg = None
+        self.checksum = None
         self.mid = None
-        self.body = None
         self.pids = None
 
         if timestamp is None:
             self.time = time.time()
         else:
             self.time = timestamp
+
+        if msg is not None:
+            self._init_from_msg(msg, ignore_checksum=ignore_checksum)
+        else:
+            self.mid = mids.get_mid(mid)
+            if not isinstance(pids, list):
+                self.pids = [{'pid': pids['pid'], 'value': None}]
+            else:
+                self.pids = [{'pid': p, 'value': None} for p in pids]
 
     @classmethod
     def calc_checksum(cls, msg):
@@ -103,11 +114,17 @@ class J1708(object):
             chksum = 0x100 - chksum
         return chksum
 
-    @classmethod
-    def make(cls, data, ignore_checksum=False):
+    def update_checksum(self):
+        self.checksum = self.calc_checksum(self.msg)
+
+        # In theory the struck.pack method is the fastest way to convert an 
+        # integer to a single byte
+        self.msg += self.msg + struct.pack('>B', self.checksum)
+
+    def _init_from_msg(self, data, ignore_checksum=False):
         if all(chr(c) in string.hexdigits for c in data):
             # Convert from printable hex to actual bytes
-            if isinstance(value, bytes) or isinstance(value, bytearray):
+            if isinstance(data, bytes) or isinstance(data, bytearray):
                 msg = bytes.fromhex(data.decode('latin-1'))
             else:
                 msg = bytes.fromhex(data)
@@ -116,22 +133,24 @@ class J1708(object):
 
         # If the message is valid calculating a checksum over the message and 
         # current checksum will add up to 0.
-        if len(msg) >= 2 and cls.calc_checksum(msg) == 0 and not ignore_checksum:
-            return cls(msg[:-1], msg[-1])
-        elif len(msg) >= 2 and cls.calc_checksum(msg) != 0 and ignore_checksum:
-            return cls(msg, None)
+        if len(msg) >= 2 and self.calc_checksum(msg) == 0:
+            self.msg = msg
+            self.checksum = msg[-1]
+        elif ignore_checksum:
+            self.msg = msg
         else:
-            # The message is invalid, but may be useful for debugging purposes
-            return cls(msg=msg, checksum=None)
+            raise ValueError(f'Invalid checksum {msg[-1]} for msg {msg[:-1].hex()}')
 
     def is_valid(self):
         return self.checksum is not None
 
     def decode(self):
         if self.mid is None:
-            self.mid, self.body = mids.extract(self.msg)
+            self.mid, rest = mids.extract(self.msg)
             self.pids = []
-            body = self.body
+
+            # assume the last byte of the message is the checksum
+            body = rest[:-1]
             while body != b'':
                 param, body = pids.extract(body)
                 if param:
@@ -152,16 +171,17 @@ class J1708(object):
         # If there is no message defined yet, encode the mid and pids into 
         # a message
         if self.msg is None:
-            raise NotImplementedError
-
-        # If this message is not valid, update the checksum now and then append 
-        # it to the message bytes
-        if not self.is_valid():
+            self.msg = struct.pack('>B', self.mid['mid']) + pids.encode(self.pids)
             self.update_checksum()
 
-        # In theory the struck.pack method is the fastest way to convert an 
-        # integer to a single byte
-        return self.msg + struct.pack('>B', self.checksum)
+        elif not self.is_valid():
+            self.update_checksum()
+
+        if len(raw_msg) > 21:
+            # TODO: need to wrap segment this message using PID 192
+            raise NotImplementedError
+
+        return self.msg
 
     def __str__(self):
         if self.checksum is not None:

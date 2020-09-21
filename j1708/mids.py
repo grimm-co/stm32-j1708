@@ -172,16 +172,12 @@ def get_mid_name(mid):
     except KeyError:
         return f'Unknown MID {mid}'
 
+def get_mid(mid):
+    return {'mid': mid, 'name': get_mid_name(mid)}
+
 
 def extract(data):
-    mid = data[0]
-
-    obj = {
-        'mid': mid,
-        'name': get_mid_name(mid)
-    }
-
-    return (obj, data[1:])
+    return (get_mid(data[0]), data[1:])
 
 
 __all__ = [
