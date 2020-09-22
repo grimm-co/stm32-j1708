@@ -103,6 +103,10 @@ class J1708(object):
             else:
                 self.pids = [{'pid': p, 'value': None} for p in pids]
 
+        # At this point MID should not be None.  pids can be blank, but MID 
+        # should be defined
+        assert self.mid is not None
+
     @classmethod
     def calc_checksum(cls, msg):
         chksum = 0
