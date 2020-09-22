@@ -2,9 +2,9 @@ import enum
 import functools
 import struct
 
-from .mids import get_mid_name
-from .pid_name import get_pid_name
-from .sid_consts import get_sid_string
+from . import mids
+from . import pid_name
+from . import sid_consts
 
 
 def get_mask_offset(mask):
@@ -395,8 +395,8 @@ class ParamRequest(object):
         self.mid = mid
 
     def format(self, **kwargs):
-        mid_str = get_mid_name(self.mid)
-        pid_str = get_pid_name(self.pid)
+        mid_str = mids.get_mid_name(self.mid)
+        pid_str = pid_name.get_pid_name(self.pid)
         return f'PID {self.pid} ({pid_str}) FROM {self.mid} ({mid_str})'
 
     @classmethod
@@ -553,10 +553,10 @@ class DTC(object):
         else:
             value_str = 'INACTIVE '
         if self.sid is not None:
-            sid_str = get_sid_string(mid, self.sid)
+            sid_str = sid_consts.get_sid_string(mid, self.sid)
             value_str += f'SID {self.sid} ({sid_str}): '
         else:
-            pid_str = get_pid_name(self.pid)
+            pid_str = pid_name.get_pid_name(self.pid)
             value_str += f'PID {self.pid} ({pid_str}): '
         value_str += self.fmi.name
         if self.count is not None:
@@ -630,15 +630,15 @@ class DTCRequest(object):
         self.type = DTC_REQ_TYPE(self.code['DTC_REQ_TYPE'])
 
     def format(self, **kwargs):
-        mid_str = get_mid_name(self.mid)
+        mid_str = mids.get_mid_name(self.mid)
         if self.type == DTC_REQ_TYPE.CLEAR_ALL_DTCS:
             return f'{self.type.name} {mid_str} ({self.mid})'
         else:
             if self.sid is not None:
-                sid_str = get_sid_string(mid, self.sid)
+                sid_str = sid_consts.get_sid_string(mid, self.sid)
                 return f'{self.type.name} {mid_str} ({self.mid}): SID {self.sid} ({sid_str})'
             else:
-                pid_str = get_pid_name(self.pid)
+                pid_str = pid_name.get_pid_name(self.pid)
                 return f'{self.type.name} {mid_str} ({self.mid}): PID {self.pid} ({pid_str})'
 
     @classmethod
@@ -695,15 +695,15 @@ class DTCResponse(object):
         self.info = info
 
     def format(self, **kwargs):
-        mid_str = get_mid_name(self.mid)
+        mid_str = mids.get_mid_name(self.mid)
         if self.type == DTC_RESP_TYPE.ALL_DTCS_CLEARED:
             return f'{self.type.name}'
         elif self.type == DTC_RESP_TYPE.DTC_CLEARED:
             if self.sid is not None:
-                sid_str = get_sid_string(mid, self.sid)
+                sid_str = sid_consts.get_sid_string(mid, self.sid)
                 return f'{self.type.name} SID {self.sid} ({sid_str})'
             else:
-                pid_str = get_pid_name(self.pid)
+                pid_str = pid_name.get_pid_name(self.pid)
                 return f'{self.type.name} PID {self.pid} ({pid_str})'
         elif self.type == DTC_RESP_TYPE.ASCII_RESPONSE:
             ascii_resp = self.info.decode('latin-1')

@@ -3879,3 +3879,8 @@ _pid_info = {
 
 def get_pid_info(pid):
     return _pid_info[pid]
+
+
+__all__ = [
+    'get_pid_info',
+]

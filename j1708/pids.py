@@ -1,8 +1,8 @@
 from fractions import Fraction
 
 from .pid_types import *
-from .pid_name import *
-from .pid_info import *
+from . import pid_name
+from . import pid_info
 
 
 def genBitMask(bits):
@@ -84,7 +84,7 @@ def get_bit_mask(bits):
         return None
 
 
-def extract(data):
+def decode(data):
     if len(data) >= 4 and data[:3] == b'\xff\xff\xff':
         pid_char = data[3]
         pid = 768 + pid_char
@@ -127,50 +127,51 @@ def extract(data):
     assert len(val_bytes) == data_len
 
     value = None
-    pid_info = get_pid_info(pid)
+    info = pid_info.get_pid_info(pid)
 
     if val_bytes == b'\xff' * data_len:
         value = f'{val_bytes.hex().upper()}: Not Available'
 
-    elif 'resolution' in pid_info:
-        if isinstance(pid_info['resolution'], Fraction) and \
+    elif 'resolution' in info:
+        if isinstance(info['resolution'], Fraction) and \
                 val_bytes != b'\xff' * data_len:
             # First byte swap the data (it's in little endian) and then multiply 
             # by the resolution
             if data_len == 1:
-                if pid_info['type'].startswith('signed'):
+                if info['type'].startswith('signed'):
                     le_val = struct.unpack('<b', val_bytes)
                 else:
                     le_val = struct.unpack('<B', val_bytes)
             elif data_len == 2:
-                if pid_info['type'].startswith('signed'):
+                if info['type'].startswith('signed'):
                     le_val = struct.unpack('<h', val_bytes)
                 else:
                     le_val = struct.unpack('<H', val_bytes)
             elif data_len == 4:
-                if pid_info['type'].startswith('signed'):
+                if info['type'].startswith('signed'):
                     le_val = struct.unpack('<l', val_bytes)
                 else:
                     le_val = struct.unpack('<L', val_bytes)
             elif data_len == 8:
-                if pid_info['type'].startswith('signed'):
+                if info['type'].startswith('signed'):
                     le_val = struct.unpack('<q', val_bytes)
                 else:
                     le_val = struct.unpack('<Q', val_bytes)
             else:
-                raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({pid_info})')
+                raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
 
-            fractional_val = float(le_val[0] * pid_info['resolution'])
+            fractional_val = float(le_val[0] * info['resolution'])
 
-            if 'units' in pid_info:
-                value = f'{fractional_val} {pid_info["units"]} ({val_bytes.hex().upper()})'
+            if 'units' in info:
+                value = f'{fractional_val} {info["units"]} ({val_bytes.hex().upper()})'
             else:
                 value = f'{fractional_val} ({val_bytes.hex().upper()})'
 
-        elif hasattr(pid_info['type'], 'decode'):
-            value = pid_info['type'].decode(val_bytes)
+        elif hasattr(info['type'], 'decode'):
+            value = info['type'].decode(val_bytes)
 
         else:
+            print(f'NOT DECODING {info}')
             value = val_bytes
 
     if value is None:
@@ -179,7 +180,7 @@ def extract(data):
     # Return a dictionary representing the PID and then the rest of the message
     obj = {
         'pid': pid,
-        'name': get_pid_name(pid),
+        'name': pid_name.get_pid_name(pid),
         'value': value,
         #'raw': data[:end],
         'raw': val_bytes,
@@ -190,14 +191,14 @@ def extract(data):
 
 
 def _encode_value(pid, value, size):
-    pid_info = get_pid_info(pid)
+    info = pid_info.get_pid_info(pid)
     if isinstance(value, bytes):
         if size is not None:
             assert len(value) == size
         return value
 
-    elif hasattr(pid_info['type'], 'encode'):
-        data = pid_info['type'].encode(value)
+    elif hasattr(info['type'], 'encode'):
+        data = info['type'].encode(value)
         if size is not None:
             assert len(data) == size
         return data
@@ -206,41 +207,41 @@ def _encode_value(pid, value, size):
         return b'\xff' * size
 
     elif size is not None and \
-            'resolution' in pid_info and \
-            isinstance(pid_info['resolution'], Fraction):
+            'resolution' in info and \
+            isinstance(info['resolution'], Fraction):
 
         # convert the value to an integer
-        le_val = int(value * pid_info['resolution'])
+        le_val = int(value * info['resolution'])
 
         # Then turn it into bytes here, because PID values are encoded 
         # little-endian, but the placement of the values in the message are in 
         # big-endian order.
         if size == 1:
-            if pid_info['type'].startswith('signed'):
+            if info['type'].startswith('signed'):
                 return struct.pack('<b', le_val)
             else:
                 return struct.pack('<B', le_val)
         elif size == 2:
-            if pid_info['type'].startswith('signed'):
+            if info['type'].startswith('signed'):
                 return struct.pack('<h', le_val)
             else:
                 return struct.pack('<H', le_val)
         elif size == 4:
-            if pid_info['type'].startswith('signed'):
+            if info['type'].startswith('signed'):
                 return struct.pack('<l', le_val)
             else:
                 return struct.pack('<L', le_val)
         elif size == 8:
-            if pid_info['type'].startswith('signed'):
+            if info['type'].startswith('signed'):
                 return struct.pack('<q', le_val)
             else:
                 return struct.pack('<Q', le_val)
         else:
-            raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({pid_info})')
+            raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
 
     else:
         # All other types must have an explicit size to be able to be encoded
-        raise ValueError(f'Cannot encode PID {pid} = {value} ({pid_info})')
+        raise ValueError(f'Cannot encode PID {pid} = {value} ({info})')
 
 
 def _encode_pid(pid, value):
@@ -281,7 +282,7 @@ def _encode_pid(pid, value):
         fmt += f'B{len(encoded_value)}s'
         parts.extend(len(encoded_value), encoded_value)
 
-    return 
+    return (fmt, parts)
 
 
 def encode(pids):
@@ -306,3 +307,10 @@ def encode(pids):
 
     # Now encode the message
     return struct.pack(fmt, *parts)
+
+
+__all__ = [
+    'decode',
+    'encode',
+]
+

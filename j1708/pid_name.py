@@ -389,3 +389,8 @@ def get_pid_name(pid):
         return _pids[pid]
     except KeyError:
         return f'Unknown PID {pid}'
+
+
+__all__ = [
+    'get_pid_name',
+]

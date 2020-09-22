@@ -176,12 +176,21 @@ def get_mid(mid):
     return {'mid': mid, 'name': get_mid_name(mid)}
 
 
-def extract(data):
+def decode(data):
     return (get_mid(data[0]), data[1:])
 
 
+def encode(mid):
+    if isinstance(mid, int):
+        mid_num = mid
+    elif hasattr(mid, 'mid'):
+        mid_num = mid['mid']
+    return struct.pack('>B', mid_num)
+
+
 __all__ = [
-    'extract',
+    'decode',
+    'encode',
     'get_mid_name',
     'is_valid',
 ]

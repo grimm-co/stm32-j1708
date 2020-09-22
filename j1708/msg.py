@@ -5,8 +5,6 @@ import struct
 
 from . import mids
 from . import pids
-from .sid_consts import *
-from .pid_types import *
 
 
 def make_pid_dict_string(value, explicit_flags=False, **kwargs):
@@ -97,15 +95,12 @@ class J1708(object):
         if msg is not None:
             self._init_from_msg(msg, ignore_checksum=ignore_checksum)
         else:
+            assert self.mid is not None
             self.mid = mids.get_mid(mid)
             if not isinstance(pids, list):
                 self.pids = [{'pid': pids['pid'], 'value': None}]
             else:
                 self.pids = [{'pid': p, 'value': None} for p in pids]
-
-        # At this point MID should not be None.  pids can be blank, but MID 
-        # should be defined
-        assert self.mid is not None
 
     @classmethod
     def calc_checksum(cls, msg):
@@ -150,13 +145,13 @@ class J1708(object):
 
     def decode(self):
         if self.mid is None:
-            self.mid, rest = mids.extract(self.msg)
+            self.mid, rest = mids.decode(self.msg)
             self.pids = []
 
             # assume the last byte of the message is the checksum
             body = rest[:-1]
             while body != b'':
-                param, body = pids.extract(body)
+                param, body = pids.decode(body)
                 if param:
                     self.pids.append(param)
                 else:
@@ -175,7 +170,7 @@ class J1708(object):
         # If there is no message defined yet, encode the mid and pids into 
         # a message
         if self.msg is None:
-            self.msg = struct.pack('>B', self.mid['mid']) + pids.encode(self.pids)
+            self.msg = mids.encode(self.mid) + pids.encode(self.pids)
             self.update_checksum()
 
         elif not self.is_valid():
