@@ -1,8 +1,11 @@
+# TODO:
+#   1. Possible to merge this 485 reparseing function with iface.run?
+
 import argparse
 
 from .msg import J1708
 from . import mids
-from .iface import _print_and_log
+from .log import Log
 
 
 def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None):
@@ -13,6 +16,7 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
     of when a message is complete or not. This function will attempt to sort
     messages into the smallest valid messages possible.
     """
+    log = Log(decode=decode, ignore_checksums=ignore_checksums, log_filename=log_filename)
 
     with open(filename, 'rb') as f:
         data = f.read()
@@ -33,8 +37,7 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
 
             # If the end offset is not == offset, print how much was skipped
             if end_offset != offset:
-                logmsg = f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}'
-                _print_and_log(logmsg, log=log)
+                log.write(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')
 
             offset += 1
 
@@ -63,10 +66,9 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
                         # Prefix the message with the offset it was found at
                         start_offset = offset - len(raw_msg)
                         if decode:
-                            logmsg = f'[{start_offset:08X}] {j1708_msg.format_for_log()}'
+                            log.write(f'[{start_offset:08X}] {j1708_msg.format_for_log()}')
                         else:
-                            logmsg = f'[{start_offset:08X}] {j1708_msg}'
-                        _print_and_log(logmsg, log=log)
+                            log.write(f'[{start_offset:08X}] {j1708_msg}')
 
                         # Clear the message
                         raw_msg = bytearray()
@@ -86,9 +88,8 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
                 raw_msg = bytearray()
                 incoming = False
 
-
         else:
             offset += 1
 
     if end_offset != offset:
-        _print_and_log(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')
+        log.write_print_and_loi(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')
