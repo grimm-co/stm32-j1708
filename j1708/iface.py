@@ -1,7 +1,19 @@
 import struct
 import serial
+import serial.tools.list_ports
 
 from .msg import J1708
+
+
+def find_device():
+    """
+    Identifies if there are any USB devices that match the VID:PID and device
+    strings expected for the J1708 tool.
+    """
+    for p in serial.tools.list_ports.grep('0483:5740'): 
+        if 'j1708' in p.manufacturer.lower():
+            return p.device
+    return None
 
 
 def _print_and_log(msg, log=None):
@@ -134,3 +146,10 @@ class Iface(object):
                     # Clear the message
                     msg = b''
                     incoming = False
+
+
+__all__ = [
+    'find_device',
+    'decode_and_print',
+    'Iface',
+]

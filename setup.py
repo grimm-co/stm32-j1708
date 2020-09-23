@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-__version__ = 
+__version__ = '0.0.1'
 
 with open('requirements.txt') as f:
     required = f.read().splitlines()
@@ -12,10 +12,10 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'j1708dump=j1708:main',
+            'j1708dump=j1708.cli.dump:main',
         ],
     },
     install_requires=required,
-    version='0.0.1',
+    version=__version__ ,
     python_requires='>=3.8',
 )

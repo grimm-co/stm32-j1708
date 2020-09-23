@@ -200,3 +200,8 @@ class J1708(object):
 
     def json(self):
         return json.dumps(self.export())
+
+
+__all__ = [
+    'J1708',
+]
