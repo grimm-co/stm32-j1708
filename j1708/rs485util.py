@@ -2,8 +2,10 @@ import argparse
 
 from .msg import J1708
 from . import mids
+from .iface import _print_and_log
 
-def parse(filename):
+
+def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None):
     """
     Attempt to identify valid messages in an RS485 log.
 
@@ -31,7 +33,8 @@ def parse(filename):
 
             # If the end offset is not == offset, print how much was skipped
             if end_offset != offset:
-                print(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')
+                logmsg = f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}'
+                _print_and_log(logmsg, log=log)
 
             offset += 1
 
@@ -48,8 +51,9 @@ def parse(filename):
                     # 4 bytes
                     j1708_msg = J1708(raw_msg)
                     if j1708_msg is not None and j1708_msg.is_valid():
-                        # Attempt to decode the message before we really consider it 
-                        # valid
+
+                        # Attempt to decode the message before we really 
+                        # consider it valid
                         j1708_msg.decode()
                         found_msgs.append(j1708_msg)
 
@@ -58,7 +62,11 @@ def parse(filename):
 
                         # Prefix the message with the offset it was found at
                         start_offset = offset - len(raw_msg)
-                        print(f'[{start_offset:08X}] {j1708_msg.format_for_log()}')
+                        if decode:
+                            logmsg = f'[{start_offset:08X}] {j1708_msg.format_for_log()}'
+                        else:
+                            logmsg = f'[{start_offset:08X}] {j1708_msg}'
+                        _print_and_log(logmsg, log=log)
 
                         # Clear the message
                         raw_msg = bytearray()
@@ -83,15 +91,4 @@ def parse(filename):
             offset += 1
 
     if end_offset != offset:
-        print(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')
-
-
-def parse485log():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('filename', help='RS485 log file to decode')
-    args = parser.parse_args()
-
-    parse(args.filename)
-
-if __name__ == '__main__':
-    parse458log()
+        _print_and_log(f'[{end_offset:08X}] SKIPPED {data[end_offset:offset].hex()}')

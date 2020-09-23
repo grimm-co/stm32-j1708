@@ -171,7 +171,6 @@ def decode(data):
             value = info['type'].decode(val_bytes)
 
         else:
-            print(f'NOT DECODING {info}')
             value = val_bytes
 
     if value is None:

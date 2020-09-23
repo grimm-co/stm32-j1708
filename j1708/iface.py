@@ -15,7 +15,8 @@ def decode_and_print(raw_msg, decode=True, explicit_flags=False, ignore_checksum
         j1708_msg = J1708(raw_msg, ignore_checksums)
         if j1708_msg is not None and j1708_msg.is_valid():
                 if decode:
-                    _print_and_log(j1708_msg.format_for_log(explicit_flags), log=log)
+                    logmsg = j1708_msg.format_for_log(explicit_flags=explicit_flags)
+                    _print_and_log(logmsg, log=log)
                 else:
                     _print_and_log(str(j1708_msg), log=log)
         else:
@@ -88,7 +89,12 @@ class Iface(object):
                 msg = b''
                 incoming = False
 
-    def reparse_log(self, filename, decode=True, ignore_checksums=False):
+    def read_from_file(self, filename, decode=True, ignore_checksums=False, log_filename=None):
+        if log_filename:
+            log = open(log_filename, 'w')
+        else:
+            log = None
+
         msg_pat = re.compile(r'^[^ ].*\([0-9]+\): ([0-9A-Fa-f]+) \(([0-9A-Fa-f]+)\)')
         with open(filename, 'r') as logfile:
             for line in logfile:
@@ -100,9 +106,31 @@ class Iface(object):
                     else:
                         msg = msgbody + msgchksum
 
-                    decode_and_print(msg, ignore_checksums)
+                    decode_and_print(msg, decode=decode, ignore_checksums=ignore_checksums, log=log)
 
                     # Clear the message
                     msg = b''
                     incoming = False
 
+    def reparse_log(self, filename, decode=True, ignore_checksums=False, log_filename=None):
+        if log_filename:
+            log = open(log_filename, 'w')
+        else:
+            log = None
+
+        msg_pat = re.compile(r'^[^ ].*\([0-9]+\): ([0-9A-Fa-f]+) \(([0-9A-Fa-f]+)\)')
+        with open(filename, 'r') as logfile:
+            for line in logfile:
+                match = msg_pat.match(line)
+                if match:
+                    msgbody, msgchksum = match.groups()
+                    if len(msgchksum) < 2:
+                        msg = msgbody + '0' + msgchksum
+                    else:
+                        msg = msgbody + msgchksum
+
+                    decode_and_print(msg, decode=decode, ignore_checksums=ignore_checksums, log=log)
+
+                    # Clear the message
+                    msg = b''
+                    incoming = False

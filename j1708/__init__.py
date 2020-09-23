@@ -3,6 +3,7 @@ import serial.tools.list_ports
 
 from .iface import Iface, decode_and_print
 from .msg import J1708
+from . import rs485util
 
 
 def find_device():
@@ -33,6 +34,8 @@ def main():
             help='disable J1587 message decoding')
     parser.add_argument('--ignore-checksums', '-i', action='store_true',
             help='ignore checksums when parsing J1708 messages')
+    parser.add_argument('--import-from-raw', '-I',
+            help='read J1708 messages from an raw serial log')
     parser.add_argument('--reparse-log', '-r',
             help='read J1708 messages from an existing log and re-parse them')
     parser.add_argument('--output-log', '-o',
@@ -41,7 +44,9 @@ def main():
 
     if args.reparse_log:
         iface = Iface()
-        iface.reparse_log(args.reparse_log, not args.no_decode, args.ignore_checksums)
+        iface.reparse_log(args.reparse_log, not args.no_decode, args.ignore_checksums, args.output_log)
+    elif args.import_from_raw:
+        rs485util.parse_file(args.import_from_raw, not args.no_decode, args.ignore_checksums, args.output_log)
     else:
         port = find_device()
         assert port
