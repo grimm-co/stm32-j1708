@@ -5,6 +5,7 @@ import struct
 from . import mids
 from . import pid_name
 from . import sid_consts
+from .exceptions import *
 
 
 def get_mask_offset(mask):
@@ -217,7 +218,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
                 value[field.mask] = (kwargs[name] << field._field_offset) & field.mask
             else:
                 errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
-                raise ValueError(errmsg)
+                raise J1708EncodeError(errmsg)
 
         # Set all the flags specified
         for flag in flags:
@@ -225,7 +226,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
                 value[flag.mask] = flag.value & flag.mask
             else:
                 errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
-                raise ValueError(errmsg)
+                raise J1708EncodeError(errmsg)
 
         return functools.reduce(lambda x, y: x | y, value.values())
 
@@ -389,7 +390,7 @@ class PowerTakeoffStatus(J1708FlagEnum):
 
 
 # PID: 128
-class ParamRequest(object):
+class ParamRequest:
     def __init__(self, pid, mid):
         self.pid = pid
         self.mid = mid
@@ -517,7 +518,7 @@ class DTCCode(StatusGroupEnumAndValue):
     PID_INCL    = (0b11101111, 0x10)
 
 
-class DTC(object):
+class DTC:
     def __init__(self, pid_sid_byte, code, count=None):
         self.code = DTCCode.decode(code)
 
@@ -608,7 +609,7 @@ class DTCRequestCode(StatusGroupEnumAndValue):
     PID_INCL                   = (0b11100000, 0x10)
 
 
-class DTCRequest(object):
+class DTCRequest:
     def __init__(self, mid, pid_sid_byte, code):
         self.mid = mid
         self.code = DTCRequestCode.decode(code)
@@ -673,7 +674,7 @@ class DTCResponseCode(StatusGroupEnumAndValue):
     PID_INCL                   = (0b11100000, 0x10)
 
 
-class DTCResponse(object):
+class DTCResponse:
     def __init__(self, pid_sid_byte, code, info):
         self.code = DTCResponseCode.decode(code)
 

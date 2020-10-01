@@ -6,6 +6,7 @@ import argparse
 from .msg import J1708
 from . import mids
 from .log import Log
+from .exceptions import *
 
 
 def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None):
@@ -73,7 +74,7 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
                         # Clear the message
                         raw_msg = bytearray()
                         incoming = False
-                except ValueError:
+                except (J1708ChecksumError, J1708DecodeError):
                     pass
 
             if len(raw_msg) >= 21:

@@ -17,15 +17,22 @@ def find_device():
     return None
 
 
-class Iface(object):
-    def __init__(self, port=None, speed=115200, som=None, eom=None):
+class Iface:
+    def __init__(self, port=None, speed=115200, som=None, eom=None, timeout=None):
         self.port = port
         self.speed = speed
+        self.timeout = timeout
 
         if som is None:
             self._som = b'$'
         if eom is None:
             self._eom = b'*'
+
+        # Used to track incoming messages.  If a timeout is specified then 
+        # readmsg() may not be able to read a full message and any bytes 
+        # received need to be saved for the next read attempt.
+        self.msg = b''
+        self.incoming = False
 
         self.serial = None
         self.open()
@@ -35,7 +42,7 @@ class Iface(object):
 
     def open(self):
         if self.port is not None and self.serial is None:
-            self.serial = serial.Serial(port=self.port, baudrate=self.speed)
+            self.serial = serial.Serial(port=self.port, baudrate=self.speed, timeout=self.timeout)
 
     def close(self):
         if self.serial is not None:
@@ -61,19 +68,37 @@ class Iface(object):
         read_bytes = self.serial.in_waiting
         return self.serial.read(read_bytes)
 
-    def readmsg(self):
+    def readmsg(self, timeout=None):
         """
-        blocking read and return an entire message 
+        blocking read and return an entire message
         """
-        msg = b''
-        incoming = False
+        # If a timeout is specified, override the initialization value for this 
+        # port
+        if timeout is not None:
+            self.serial.timeout = timeout
+
         while True:
             char = self.serial.read()
-            if not incoming and char == self._som:
-                incoming = True
-            elif incoming and char != self._eom:
-                msg += char
-            elif incoming and char == self._eom:
+
+            if char is None:
+                # Timeout occurred
+                if timeout is not None:
+                    self.serial.timeout = self.timeout
+                return None
+
+            if not self.incoming and char == self._som:
+                self.incoming = True
+            elif self.incoming and char != self._eom:
+                self.msg += char
+            elif self.incoming and char == self._eom:
+                msg = self.msg
+
+                # Clear the in-progress message values before returning
+                self.msg = b''
+                self.incoming = False
+
+                if timeout is not None:
+                    self.serial.timeout = self.timeout
                 return msg
 
     def __iter__(self):
@@ -82,11 +107,12 @@ class Iface(object):
         """
         return self
 
-    def __next__(self):
+    def __next__(self, timeout=None):
         """
-        Blocks until a message is received.  Never stops.
+        Blocks until a message is received.  Never stops.  If a timeout occurs
+        will return None.
         """
-        return self.readmsg()
+        return self.readmsg(timeout=timeout)
 
     def run(self, decode=True, ignore_checksums=False, log_filename=None):
         """
@@ -95,7 +121,8 @@ class Iface(object):
         log = Log(decode=decode, ignore_checksums=ignore_checksums, log_filename=log_filename)
         try:
             for msg in self:
-                log.logmsg(msg)
+                if msg is not None:
+                    log.logmsg(msg)
         except KeyboardInterrupt:
             # Add a return char to help make the next command prompt look nice
             print('')

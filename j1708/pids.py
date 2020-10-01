@@ -3,6 +3,7 @@ from fractions import Fraction
 from .pid_types import *
 from . import pid_name
 from . import pid_info
+from .exceptions import *
 
 
 def genBitMask(bits):
@@ -158,7 +159,7 @@ def decode(data):
                 else:
                     le_val = struct.unpack('<Q', val_bytes)
             else:
-                raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
+                raise J1708DecodeError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
 
             fractional_val = float(le_val[0] * info['resolution'])
 
@@ -236,11 +237,11 @@ def _encode_value(pid, value, size):
             else:
                 return struct.pack('<Q', le_val)
         else:
-            raise ValueError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
+            raise J1708EncodeError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
 
     else:
         # All other types must have an explicit size to be able to be encoded
-        raise ValueError(f'Cannot encode PID {pid} = {value} ({info})')
+        raise J1708EncodeError(f'Cannot encode PID {pid} = {value} ({info})')
 
 
 def _encode_pid(pid, value):
@@ -293,7 +294,7 @@ def encode(pids):
     if any(p['pid'] == 254 for p in pids) and pids[-1]['pid'] != 254:
         pidlist = [p['pid'] for p in pids]
         errmsg = f'PID 254 must be last: {pidlist}'
-        raise ValueError(errmsg)
+        raise J1708EncodeError(errmsg)
 
     # Integer data fields in J1708 are little-endian, but the message fields are 
     # extracted from the message in big-endian order (WTF people)

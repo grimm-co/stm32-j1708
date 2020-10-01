@@ -5,6 +5,7 @@ import struct
 
 from . import mids
 from . import pids
+from .exceptions import *
 
 
 def make_pid_dict_string(value, explicit_flags=False, **kwargs):
@@ -80,7 +81,7 @@ def format_pid_value(value, **kwargs):
         return make_pid_string(**kwargs, value=value)
 
 
-class J1708(object):
+class J1708:
     def __init__(self, msg=None, timestamp=None, mid=None, pids=None, ignore_checksum=False):
         self.msg = None
         self.checksum = None
@@ -138,7 +139,7 @@ class J1708(object):
         elif ignore_checksum:
             self.msg = msg
         else:
-            raise ValueError(f'Invalid checksum {msg[-1]} for msg {msg[:-1].hex()}')
+            raise J1708ChecksumError(f'Invalid checksum {msg[-1]} for msg {msg[:-1].hex()}')
 
     def is_valid(self):
         return self.checksum is not None
@@ -156,7 +157,7 @@ class J1708(object):
                     self.pids.append(param)
                 else:
                     # This message is invalid
-                    raise ValueError(f'WARNING: unable to extract valid PID from {body}')
+                    raise J1708DecodeError(f'WARNING: unable to extract valid PID from {body}')
 
     def format_for_log(self, explicit_flags=False):
         self.decode()
@@ -178,7 +179,7 @@ class J1708(object):
 
         if len(raw_msg) > 21:
             # TODO: need to wrap segment this message using PID 192
-            raise NotImplementedError
+            raise NotImplementedError(f'encoded msg too long ({len(raw_msg)}): need to implement msg segmentation using PID 192')
 
         return self.msg
 

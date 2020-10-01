@@ -13,6 +13,7 @@ setup(
     entry_points={
         'console_scripts': [
             'j1708dump=j1708.cli.dump:main',
+            'j1708sniff=j1708.cli.sniff:main',
         ],
     },
     install_requires=required,
