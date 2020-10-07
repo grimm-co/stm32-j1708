@@ -96,8 +96,9 @@ class J1708:
         if msg is not None:
             self._init_from_msg(msg, ignore_checksum=ignore_checksum)
         else:
-            assert self.mid is not None
+            assert mid is not None
             self.mid = mids.get_mid(mid)
+
             if not isinstance(pids, list):
                 self.pids = [{'pid': pids['pid'], 'value': None}]
             else:
@@ -177,13 +178,16 @@ class J1708:
         elif not self.is_valid():
             self.update_checksum()
 
-        if len(raw_msg) > 21:
+        if len(self.msg) > 21:
             # TODO: need to wrap segment this message using PID 192
             raise NotImplementedError(f'encoded msg too long ({len(raw_msg)}): need to implement msg segmentation using PID 192')
 
         return self.msg
 
     def __str__(self):
+        if self.msg is None:
+            self.encode()
+
         if self.checksum is not None:
             return f'{self.msg.hex().upper()} ({self.checksum:X})'
         else:

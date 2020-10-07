@@ -197,7 +197,8 @@ def _encode_value(pid, value, size):
             assert len(value) == size
         return value
 
-    elif hasattr(info['type'], 'encode'):
+    elif hasattr(info['type'], 'encode') and hasattr(info['type'], 'decode'):
+        print(pid, info)
         data = info['type'].encode(value)
         if size is not None:
             assert len(data) == size
@@ -245,20 +246,23 @@ def _encode_value(pid, value, size):
 
 
 def _encode_pid(pid, value):
-    pid_char = pid['pid'] % 256
+    try:
+        pid_char = pid['pid'] % 256
+    except TypeError:
+        pid_char = pid % 256
 
     if pid <= 256:
         fmt = 'BBBB'
-        parts = [0xff, 0xff, 0xff, pid_chr]
+        parts = [0xff, 0xff, 0xff, pid_char]
     elif pid <= 512:
         fmt = 'BBB'
-        parts = [0xff, 0xff, pid_chr]
+        parts = [0xff, 0xff, pid_char]
     elif pid <= 768:
         fmt = 'BB'
-        parts = [0xff, pid_chr]
+        parts = [0xff, pid_char]
     else:
         fmt = 'B'
-        parts = [pid_chr]
+        parts = [pid_char]
 
     if pid_char in range(0, 128):
         # 1-byte PID value

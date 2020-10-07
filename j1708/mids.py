@@ -1,3 +1,5 @@
+import struct
+
 from .utils import RangeDict
 
 msgs = RangeDict({
@@ -181,11 +183,10 @@ def decode(data):
 
 
 def encode(mid):
-    if isinstance(mid, int):
-        mid_num = mid
-    elif hasattr(mid, 'mid'):
-        mid_num = mid['mid']
-    return struct.pack('>B', mid_num)
+    try:
+        return struct.pack('>B', mid['mid'])
+    except TypeError:
+        return struct.pack('>B', mid)
 
 
 __all__ = [
