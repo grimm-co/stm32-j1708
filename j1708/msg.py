@@ -82,11 +82,12 @@ def format_pid_value(value, **kwargs):
 
 
 class J1708:
-    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, ignore_checksum=False):
+    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, ignore_checksum=False, rate=None):
         self.msg = None
         self.checksum = None
         self.mid = None
         self.pids = None
+        self.rate = rate
 
         if timestamp is None:
             self.time = time.time()
@@ -103,6 +104,19 @@ class J1708:
                 self.pids = [{'pid': pids['pid'], 'value': None}]
             else:
                 self.pids = [{'pid': p, 'value': None} for p in pids]
+
+        self._pid_map = {}
+        for pid in self.pids:
+            self._pid_map[pid['pid']] = pid
+
+    def __getitem__(self, key):
+        return self._pid_map[key]['value']
+
+    def __setitem__(self, key, value):
+        if key in self._pid_map:
+            self._pid_map[key]['value'] = value
+        else:
+            self._pid_map[key] = {'pid': key, 'value': value}
 
     @classmethod
     def calc_checksum(cls, msg):
