@@ -95,7 +95,7 @@ class Log:
         else:
             if isinstance(msg, bytes):
                 # decode this as a J1708 message
-                j1708_msg = J1708(msg, self._ignore_checksums)
+                j1708_msg = J1708(msg, decode=self._decode, ignore_checksums=self._ignore_checksums)
             else:
                 # Assume it already is a J1708 message
                 j1708_msg = msg

@@ -53,7 +53,7 @@ def parse_file(filename, decode=True, ignore_checksums=False, log_filename=None)
                     # what a valid message is don't start checking for a valid 
                     # checksum/end of message until the message size reaches 
                     # 4 bytes
-                    j1708_msg = J1708(raw_msg)
+                    j1708_msg = J1708(raw_msg, decode=decode)
                     if j1708_msg is not None and j1708_msg.is_valid():
 
                         # Attempt to decode the message before we really 

@@ -82,7 +82,7 @@ def format_pid_value(value, **kwargs):
 
 
 class J1708:
-    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, ignore_checksum=False, rate=None):
+    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, decode=True, ignore_checksum=False, rate=None):
         self.msg = None
         self.checksum = None
         self.mid = None
@@ -96,6 +96,8 @@ class J1708:
 
         if msg is not None:
             self._init_from_msg(msg, ignore_checksum=ignore_checksum)
+            if decode:
+                self.decode()
         else:
             assert mid is not None
             self.mid = mids.get_mid(mid)
