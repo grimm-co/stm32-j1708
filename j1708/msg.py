@@ -2,6 +2,7 @@ import time
 import string
 import re
 import struct
+import json
 
 from . import mids
 from . import pids
@@ -31,7 +32,6 @@ def make_pid_dict_string(value, explicit_flags=False, **kwargs):
     return pid_str
 
 
-_whitespace_pat = re.compile(r'^\s+')
 def make_pid_list_string(pid, value, explicit_flags=False, **kwargs):
     if 'raw' in pid:
         prefix_str = f'\n    {pid["raw"].hex().upper()}:'
@@ -46,7 +46,7 @@ def make_pid_list_string(pid, value, explicit_flags=False, **kwargs):
             formatted = format_pid_value(**kwargs, pid=pid, value=val, explicit_flags=explicit_flags)
             if not formatted.endswith('_OFF') or explicit_flags:
                 # Remove any leading whitespace from the formatted value
-                formatted_values.append(_whitespace_pat.sub('', formatted))
+                formatted_values.append(formatted.lstrip())
 
         if formatted_values:
             all_one_line = prefix_str + ' ' + ', '.join(formatted_values)
@@ -215,7 +215,7 @@ class J1708:
             'time': self.time,
             'mid': self.mid['mid'],
             'checksum': self.checksum,
-            'pids': self.pids,
+            'pids': pids.export(self.pids, mid=self.mid),
         }
         return obj
 

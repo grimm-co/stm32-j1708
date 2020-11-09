@@ -190,6 +190,33 @@ def decode(data):
     return (obj, rest)
 
 
+def _export_pid_value(value, mid=None):
+    if hasattr(value, 'format'):
+        return value.format(mid=mid)
+    elif isinstance(value, dict):
+        return dict((k, _export_pid_value(v, mid=mid)) for k, v in value.items)
+    elif isinstance(value, list):
+        return list(_export_pid_value(v, mid=mid) for v in value)
+    elif isinstance(value, bytes) or isinstance(value, bytearray):
+        # Format bytes as a string
+        return value.hex()
+    elif isinstance(value, str):
+        return value.strip()
+    else:
+        return value
+
+
+def export(pids, mid):
+    # Don't include the PID name or raw bytes in a JSON exportable object
+    exported_pids = []
+    for obj in pids:
+        exported_pids.append({
+            'pid': obj['pid'],
+            'value': _export_pid_value(obj['value'], mid=mid)
+        })
+    return exported_pids
+
+
 def _encode_value(pid, value, size):
     info = pid_info.get_pid_info(pid)
     if isinstance(value, bytes):
@@ -315,6 +342,7 @@ def encode(pids):
 
 __all__ = [
     'decode',
+    'export',
     'encode',
 ]
 

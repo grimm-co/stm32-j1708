@@ -30,7 +30,7 @@ class J1708FlagEnum(enum.IntFlag):
             return False
 
     def format(self, **kwargs):
-        return '\n    ' + str(self)
+        return str(self)
 
     @classmethod
     def _get_flags(cls, value):
