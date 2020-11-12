@@ -214,6 +214,7 @@ class J1708:
         obj = {
             'time': self.time,
             'mid': self.mid['mid'],
+            'src': self.mid['name'],
             'checksum': self.checksum,
             'pids': pids.export(self.pids, mid=self.mid),
         }

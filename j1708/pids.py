@@ -212,6 +212,7 @@ def export(pids, mid):
     for obj in pids:
         exported_pids.append({
             'pid': obj['pid'],
+            'name': obj['name'],
             'value': _export_pid_value(obj['value'], mid=mid)
         })
     return exported_pids
