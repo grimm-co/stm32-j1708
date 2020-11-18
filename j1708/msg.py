@@ -217,6 +217,7 @@ class J1708:
             'src': self.mid['name'],
             'checksum': self.checksum,
             'pids': pids.export(self.pids, mid=self.mid),
+            'data': self.msg.hex(),
         }
         return obj
 
