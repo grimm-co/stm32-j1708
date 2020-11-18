@@ -226,7 +226,6 @@ def _encode_value(pid, value, size):
         return value
 
     elif hasattr(info['type'], 'encode') and hasattr(info['type'], 'decode'):
-        print(pid, info)
         data = info['type'].encode(value)
         if size is not None:
             assert len(data) == size
@@ -240,7 +239,7 @@ def _encode_value(pid, value, size):
             isinstance(info['resolution'], Fraction):
 
         # convert the value to an integer
-        le_val = int(value * info['resolution'])
+        le_val = int(value / info['resolution'])
 
         # Then turn it into bytes here, because PID values are encoded 
         # little-endian, but the placement of the values in the message are in 
@@ -275,42 +274,45 @@ def _encode_value(pid, value, size):
 
 def _encode_pid(pid, value):
     try:
-        pid_char = pid['pid'] % 256
+        pid_val = pid['pid']
     except TypeError:
-        pid_char = pid % 256
+        pid_val = pid
+    pid_char = pid_val % 256
 
-    if pid <= 256:
-        fmt = 'BBBB'
-        parts = [0xff, 0xff, 0xff, pid_char]
-    elif pid <= 512:
-        fmt = 'BBB'
-        parts = [0xff, 0xff, pid_char]
-    elif pid <= 768:
-        fmt = 'BB'
-        parts = [0xff, pid_char]
-    else:
+    if pid_val <= 256:
         fmt = 'B'
         parts = [pid_char]
+    elif pid_val <= 512:
+        fmt = 'BB'
+        parts = [0xff, pid_char]
+    elif pid_val <= 512:
+        fmt = 'BBB'
+        parts = [0xff, 0xff, pid_char]
+    elif pid_val <= 768:
+        fmt = 'BBBB'
+        parts = [0xff, 0xff, 0xff, pid_char]
+    else:
+        raise J1708EncodeError(f'Cannot encode invalid PID value {pid_val}')
 
     if pid_char in range(0, 128):
         # 1-byte PID value
         fmt += '1s'
-        parts.append(_encode_value(pid, value, 1))
+        parts.append(_encode_value(pid_val, value, 1))
 
     elif pid_char in range(128, 192):
         # 2-byte PID value
         fmt += '2s'
-        parts.append(_encode_value(pid, value, 1))
+        parts.append(_encode_value(pid_val, value, 1))
 
     elif pid_char == 254:
         # PID 254 is variable length with no length field
-        encoded_value = _encode_value(pid, value, None)
+        encoded_value = _encode_value(pid_val, value, None)
         fmt += f'{len(encoded_value)}s'
         parts.append(encoded_value)
 
     else:
         # All other values are variable length
-        encoded_value = _encode_value(pid, value, None)
+        encoded_value = _encode_value(pid_val, value, None)
         fmt += f'B{len(encoded_value)}s'
         parts.extend(len(encoded_value), encoded_value)
 
