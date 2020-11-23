@@ -48,7 +48,7 @@ class J1708FlagEnum(enum.IntFlag):
         return cls._get_flags(value)
 
     @classmethod
-    def encode(cls, *flags):
+    def encode(cls, flags):
         return functools.reduce(lambda x, y: x | y, flags)
 
 
@@ -110,15 +110,21 @@ class StatusGroupEnum(J1708FlagEnum):
             return super().__str__()
 
     @classmethod
-    def encode(cls, *flags):
+    def encode(cls, flags):
         # Sort the flags by mask and ensure there are no duplicate masks
         value = {}
         for flag in flags:
+            if not hasattr(flag, 'mask'):
+                try:
+                    flag = cls(flag)
+                except ValueError:
+                    flag = cls[flag]
+
             if flag.mask not in value:
                 value[flag.mask] = flag.value & flag.mask
             else:
-                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
-                raise ValueError(errmsg)
+                errmsg = f'Cannot set multiple values in the same group: {flags}'
+                raise J1708EncodeError(errmsg)
         return functools.reduce(lambda x, y: x | y, value.values())
 
 
@@ -202,7 +208,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
         return obj
 
     @classmethod
-    def encode(cls, *flags, **kwargs):
+    def encode(cls, flags, **kwargs):
         # the flags could also be supplied as a dictionary to allow setting 
         # a non-status field explicitly
         if isinstance(flags[0], dict):
@@ -213,22 +219,34 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
         value = {}
         # Set any fields specified
         for name in kwargs:
-            field = cls[kwargs[name]]
-            if flag.mask not in value:
-                value[field.mask] = (kwargs[name] << field._field_offset) & field.mask
+            if not isinstance(name, StatusGroupEnumAndValue):
+                field = cls[name]
             else:
-                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
+                field = name
+
+            if not isinstance(kwargs[name], int):
+                # The field name should match an IntEnum type in this module
+                try:
+                    field_type_cls = globals()[name]
+                except KeyError:
+                    raise J1708EncodeError(f'Invalid value field {name} for {cls.__name__}')
+
+                try:
+                    field_val = field_type_cls[kwargs[name]]
+                except KeyError:
+                    raise J1708EncodeError(f'Invalid value {kwargs[name]} for field {field_type_cls}')
+            else:
+                field_val = kwargs[name]
+
+            if field.mask not in value:
+                value[field.mask] = (field_val << field._field_offset) & field.mask
+            else:
+                errmsg = f'Cannot set multiple values in the same group: {kwargs}'
                 raise J1708EncodeError(errmsg)
 
-        # Set all the flags specified
-        for flag in flags:
-            if flag.mask not in value:
-                value[flag.mask] = flag.value & flag.mask
-            else:
-                errmsg = f'Cannot set multiple values in the same group:\n  {flags}'
-                raise J1708EncodeError(errmsg)
-
-        return functools.reduce(lambda x, y: x | y, value.values())
+        # encode flags using the parent class
+        retval = functools.reduce(lambda x, y: x | y, value.values())
+        return retval | super().encode(flags)
 
 
 class FMI(enum.IntEnum):
@@ -405,8 +423,8 @@ class ParamRequest:
         return cls(msg_body[0], msg_body[1])
 
     @classmethod
-    def encode(cls, *args, **kwargs):
-        return struct.pack('>BB', self.pid, self.mid)
+    def encode(cls, pid, mid):
+        return struct.pack('>BB', pid, mid)
 
 
 # PID: 151
@@ -648,8 +666,66 @@ class DTCRequest:
         return cls(msg_body[0], msg_body[1], msg_body[2])
 
     @classmethod
-    def encode(cls, *args, **kwargs):
-        raise NotImplementedError
+    def encode(cls, arg=None, **kwargs):
+        flags = []
+        if arg is not None:
+            assert isinstance(arg, DTCRequest)
+
+            mid = args[0].mid
+
+            if args[0].sid is not None:
+                flags.append('SID_INCL')
+                sid_or_pid = args[0].sid
+            else:
+                flags.append('PID_INCL')
+                sid_or_pid = args[0].pid
+
+            req_type = args[0].type
+            fmi = args[0].fmi
+
+        else:
+            # For now only the diagnostic tool side of the DTC request PID is 
+            # implemented
+            if 'mid' not in kwargs:
+                raise J1708EncodeError(f'Unable to encode PID 195 without destination MID (msg: {kwargs})')
+            else:
+                mid = kwargs['mid']
+
+            if 'pid' in kwargs and 'sid' in kwargs:
+                raise J1708EncodeError(f'Unable to encode PID 195 with both PID and SID (msg: {kwargs})')
+            elif 'pid' not in kwargs and 'sid' not in kwargs:
+                raise J1708EncodeError(f'Unable to encode PID 195 without PID or SID (msg: {kwargs})')
+            elif 'sid' in kwargs:
+                flags.append('SID_INCL')
+                sid_or_pid = kwargs['sid']
+            else:
+                flags.append('PID_INCL')
+                sid_or_pid = kwargs['pid']
+
+            if 'type' not in kwargs:
+                raise J1708EncodeError(f'Unable to encode PID 195 request type (msg: {kwargs})')
+            else:
+                req_type = kwargs['type']
+
+            if 'fmi' in kwargs:
+                fmi = kwargs['fmi']
+            else:
+                fmi = 'RESERVED'
+
+        if sid_or_pid >= 256:
+            flags.append('EXTENDED')
+            sid_or_pid -= 256
+        else:
+            flags.append('STANDARD')
+
+        # Construct the DTC request code byte:
+        code_kwargs = {
+            'flags': flags,
+            'DTC_REQ_TYPE': req_type,
+            'FMI': fmi,
+        }
+        code = DTCRequestCode.encode(**code_kwargs)
+        return struct.pack('>BBBB', 3, mid, sid_or_pid, code)
 
 
 # PID: 196

@@ -226,7 +226,13 @@ def _encode_value(pid, value, size):
         return value
 
     elif hasattr(info['type'], 'encode') and hasattr(info['type'], 'decode'):
-        data = info['type'].encode(value)
+        if isinstance(value, dict):
+            data = info['type'].encode(**value)
+        elif isinstance(value, list):
+            data = info['type'].encode(*value)
+        else:
+            data = info['type'].encode(value)
+
         if size is not None:
             assert len(data) == size
         return data
@@ -279,44 +285,37 @@ def _encode_pid(pid, value):
         pid_val = pid
     pid_char = pid_val % 256
 
+    # Individual fields and types in J1708 are little-endian encoded
     if pid_val <= 256:
-        fmt = 'B'
-        parts = [pid_char]
+        msg = b''
     elif pid_val <= 512:
-        fmt = 'BB'
-        parts = [0xff, pid_char]
+        msg = b'\xFF'
     elif pid_val <= 512:
-        fmt = 'BBB'
-        parts = [0xff, 0xff, pid_char]
+        msg = b'\xFF\xFF'
     elif pid_val <= 768:
-        fmt = 'BBBB'
-        parts = [0xff, 0xff, 0xff, pid_char]
+        msg = b'\xFF\xFF\xFF'
     else:
         raise J1708EncodeError(f'Cannot encode invalid PID value {pid_val}')
+    msg += struct.pack('<B', pid_char)
 
     if pid_char in range(0, 128):
         # 1-byte PID value
-        fmt += '1s'
-        parts.append(_encode_value(pid_val, value, 1))
+        msg += _encode_value(pid_val, value, 1)
 
     elif pid_char in range(128, 192):
         # 2-byte PID value
-        fmt += '2s'
-        parts.append(_encode_value(pid_val, value, 1))
+        msg += _encode_value(pid_val, value, 2)
 
     elif pid_char == 254:
         # PID 254 is variable length with no length field
-        encoded_value = _encode_value(pid_val, value, None)
-        fmt += f'{len(encoded_value)}s'
-        parts.append(encoded_value)
+        msg += _encode_value(pid_val, value, None)
 
     else:
         # All other values are variable length
         encoded_value = _encode_value(pid_val, value, None)
-        fmt += f'B{len(encoded_value)}s'
-        parts.extend(len(encoded_value), encoded_value)
+        msg += struct.pack('<B', len(encoded_value)) + encoded_value
 
-    return (fmt, parts)
+    return msg
 
 
 def encode(pids):
@@ -332,20 +331,35 @@ def encode(pids):
 
     # Integer data fields in J1708 are little-endian, but the message fields are 
     # extracted from the message in big-endian order (WTF people)
-    fmt = '>'
-    parts = []
+    msg = b''
     for pid in pids:
-        ret = _encode_pid(pid['pid'], pid['value'])
-        fmt += ret[0]
-        parts += ret[1]
+        msg += _encode_pid(pid['pid'], pid['value'])
 
-    # Now encode the message
-    return struct.pack(fmt, *parts)
+    return msg
+
+
+def PID(obj):
+    # Function that will eventually be turned into a standalone class
+    try:
+        if 'pid' in obj:
+            pid = {'pid': obj['pid'], 'value': None}
+    except TypeError:
+        if isinstance(obj, int):
+            # This is all the data that was provided so just return now
+            return {'pid': obj, 'value': None}
+        else:
+            raise TypeError(f'Not a valid PID: {obj}')
+
+    if 'value' in obj:
+        pid['value'] = obj['value']
+
+    return pid
 
 
 __all__ = [
     'decode',
     'export',
     'encode',
+    'PID',
 ]
 

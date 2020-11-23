@@ -4,9 +4,9 @@ import re
 import struct
 import json
 
-from . import mids
-from . import pids
-from .exceptions import *
+from . import mids as j1708_mids
+from . import pids as j1708_pids
+from j1708.exceptions import *
 
 
 def make_pid_dict_string(value, explicit_flags=False, **kwargs):
@@ -82,7 +82,7 @@ def format_pid_value(value, **kwargs):
 
 
 class J1708:
-    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, decode=True, ignore_checksum=False, rate=None):
+    def __init__(self, msg=None, timestamp=None, mid=None, pids=None, decode=True, ignore_checksum=False, rate=None, pid=None):
         self.msg = None
         self.checksum = None
         self.mid = None
@@ -100,12 +100,16 @@ class J1708:
                 self.decode()
         else:
             assert mid is not None
-            self.mid = mids.get_mid(mid)
+            self.mid = j1708_mids.get_mid(mid)
 
-            if not isinstance(pids, list):
-                self.pids = [{'pid': pids['pid'], 'value': None}]
+            assert not (pids and pid)
+            if pids is None and pid is not None:
+                pids = pid
+
+            if isinstance(pids, list):
+                self.pids = [j1708_pids.PID(p) for p in pids]
             else:
-                self.pids = [{'pid': p, 'value': None} for p in pids]
+                self.pids = [j1708_pids.PID(pids)]
 
         self._pid_map = {}
         for pid in self.pids:
@@ -136,7 +140,7 @@ class J1708:
 
         # In theory the struck.pack method is the fastest way to convert an 
         # integer to a single byte
-        self.msg += self.msg + struct.pack('>B', self.checksum)
+        self.msg += struct.pack('>B', self.checksum)
 
     def _init_from_msg(self, data, ignore_checksum=False):
         if all(chr(c) in string.hexdigits for c in data):
@@ -163,13 +167,13 @@ class J1708:
 
     def decode(self):
         if self.mid is None:
-            self.mid, rest = mids.decode(self.msg)
+            self.mid, rest = j1708_mids.decode(self.msg)
             self.pids = []
 
             # assume the last byte of the message is the checksum
             body = rest[:-1]
             while body != b'':
-                param, body = pids.decode(body)
+                param, body = j1708_pids.decode(body)
                 if param:
                     self.pids.append(param)
                 else:
@@ -188,7 +192,8 @@ class J1708:
         # If there is no message defined yet, encode the mid and pids into 
         # a message
         if self.msg is None:
-            self.msg = mids.encode(self.mid) + pids.encode(self.pids)
+            self.msg = j1708_mids.encode(self.mid)
+            self.msg += j1708_pids.encode(self.pids)
             self.update_checksum()
 
         elif not self.is_valid():
@@ -216,7 +221,7 @@ class J1708:
             'mid': self.mid['mid'],
             'src': self.mid['name'],
             'checksum': self.checksum,
-            'pids': pids.export(self.pids, mid=self.mid),
+            'pids': j1708_pids.export(self.pids, mid=self.mid),
             'data': self.msg.hex(),
         }
         return obj
