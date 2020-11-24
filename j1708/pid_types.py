@@ -654,7 +654,7 @@ class DTCRequest:
             return f'{self.type.name} {mid_str} ({self.mid})'
         else:
             if self.sid is not None:
-                sid_str = sid_consts.get_sid_string(mid, self.sid)
+                sid_str = sid_consts.get_sid_string(self.mid, self.sid)
                 return f'{self.type.name} {mid_str} ({self.mid}): SID {self.sid} ({sid_str})'
             else:
                 pid_str = pid_name.get_pid_name(self.pid)
@@ -663,7 +663,7 @@ class DTCRequest:
     @classmethod
     def decode(cls, msg_body):
         num_bytes = msg_body[0]
-        return cls(msg_body[0], msg_body[1], msg_body[2])
+        return cls(mid=msg_body[1], pid_sid_byte=msg_body[2], code=msg_body[3])
 
     @classmethod
     def encode(cls, arg=None, **kwargs):

@@ -1204,7 +1204,9 @@ mid_to_sid_map = {
 
 
 def get_sid_string(mid, sid):
-    sid_table = mid_to_sid_map.get(mid['mid'], common_sids)
+    if not isinstance(mid, int):
+        mid = mid['mid']
+    sid_table = mid_to_sid_map.get(mid, (common_sids,))
 
     for table in sid_table:
         try:
