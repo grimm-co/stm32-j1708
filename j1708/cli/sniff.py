@@ -185,8 +185,8 @@ class Sniffer:
         msgs_slice = itertools.islice(enumerate(self.msgs.values()), slice_start, slice_end)
         row = 0
         for msg_idx, msg in msgs_slice:
-            pidlist = ', '.join([str(p['pid']) for p in msg.pids])
-            msgstr = f'{msg.mid["name"]} [{msg.mid["mid"]}]: {pidlist}'
+            pidlist = ', '.join([str(p.pid) for p in msg.pids])
+            msgstr = f'{msg.src} [{msg.mid}]: {pidlist}'
 
             if msg_idx == self.cursor['mid']:
                 self.scr.attron(curses.color_pair(Colors.CURRENT_LINE))
@@ -264,8 +264,8 @@ class Sniffer:
                     self.msgcount += 1
                     self.log.logmsg(msg)
 
-                    mid_key = msg.mid['mid']
-                    msg_key = (p['pid'] for p in msg.pids)
+                    mid_key = msg.mid.mid
+                    msg_key = tuple(p.pid for p in msg.pids)
 
                     if mid_key not in self.msgs:
                         self.msgs[mid_key] = {'expand': False, 'msgs': {}}

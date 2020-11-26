@@ -1,4 +1,5 @@
 from .utils import RangeDict
+from . import mids
 
 
 common_sids = RangeDict({
@@ -1204,16 +1205,15 @@ mid_to_sid_map = {
 
 
 def get_sid_string(mid, sid):
-    if not isinstance(mid, int):
-        mid = mid['mid']
-    sid_table = mid_to_sid_map.get(mid, (common_sids,))
+    mid_value = mids.get_mid_value(mid)
+    sid_table = mid_to_sid_map.get(mid_value, (common_sids,))
 
     for table in sid_table:
         try:
             return table[sid]
         except KeyError:
             pass
-    return f'Unknown SID {sid} for MID {mid}'
+    return f'Unknown SID {sid} for MID {mid_value}'
 
 
 __all__ = [

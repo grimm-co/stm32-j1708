@@ -384,11 +384,22 @@ _pids = RangeDict({
     range(512-1021): 'Reserved',
 })
 
+
+def _get_pid_value(pid):
+    if hasattr(pid, 'pid'):
+        return pid.pid
+    elif isinstance(pid, dict):
+        return pid['pid']
+    else:
+        return pid
+
+
 def get_pid_name(pid):
+    pid_val = _get_pid_value(pid)
     try:
-        return _pids[pid]
+        return _pids[pid_val]
     except KeyError:
-        return f'Unknown PID {pid}'
+        return f'Unknown PID {pid_val}'
 
 
 __all__ = [

@@ -12,7 +12,8 @@ _pid_info = {
         'pid': 0,
         'priority': '8',
         'range': '0 to 255',
-        'resolution': 'binary',
+        'resolution': Fraction(1, 1),
+        #'resolution': 'binary',
         #'type': get_pid_name,
         'type': 'unsigned short integer',
     },
@@ -2015,7 +2016,7 @@ _pid_info = {
         'priority': 'parameter specific',
         'range': 'defined by specified sectioned parameter',
         'resolution': 'defined by specified sectioned parameter',
-        'type': 'defined by specified sectioned parameter',
+        'type': pid_types.MultisectionParam,
     },
     193: {
         'length': 'variable',
@@ -3723,7 +3724,7 @@ _pid_info = {
         'priority': 'parameter specific',
         'range': 'defined by specified sectioned parameter',
         'resolution': 'defined by specified sectioned parameter',
-        'type': 'defined by specified sectioned parameter',
+        'type': pid_types.Page2MultisectionParam,
     },
     449: {
         'length': '3 characters',
@@ -3877,8 +3878,18 @@ _pid_info = {
 }
 
 
+def _get_pid_value(pid):
+    if hasattr(pid, 'pid'):
+        return pid.pid
+    elif isinstance(pid, dict):
+        return pid['pid']
+    else:
+        return pid
+
+
 def get_pid_info(pid):
-    return _pid_info[pid]
+    pid_val = _get_pid_value(pid)
+    return _pid_info[pid_val]
 
 
 __all__ = [

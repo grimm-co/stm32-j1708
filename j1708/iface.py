@@ -17,6 +17,9 @@ def find_device():
     return None
 
 
+# TODO: Add an easy way to track multi-section "conversations"
+
+
 class Iface:
     def __init__(self, port=None, speed=115200, som=None, eom=None, timeout=None):
         self.port = port

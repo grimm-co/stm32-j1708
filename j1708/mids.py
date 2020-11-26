@@ -156,9 +156,18 @@ msgs = RangeDict({
 })
 
 
+def get_mid_value(mid):
+    if isinstance(mid, J1708MID):
+        return mid.mid
+    elif isinstance(mid, dict):
+        return mid['mid']
+    else:
+        return mid
+
+
 def is_valid(mid):
     try:
-        mid_name = msgs[mid]
+        mid_name = msgs[get_mid_value(mid)]
     except KeyError:
         return False
 
@@ -169,29 +178,51 @@ def is_valid(mid):
 
 
 def get_mid_name(mid):
+    mid_val = get_mid_value(mid)
     try:
-        return msgs[mid]
+        return msgs[mid_val]
     except KeyError:
-        return f'Unknown MID {mid}'
-
-def get_mid(mid):
-    return {'mid': mid, 'name': get_mid_name(mid)}
-
+        return f'Unknown MID {mid_val}'
 
 def decode(data):
-    return (get_mid(data[0]), data[1:])
+    return (J1708MID(data[0]), data[1:])
 
 
 def encode(mid):
-    try:
+    if isinstance(mid, J1708MID):
+        return mid.encode()
+    elif isinstance(mid, dict):
         return struct.pack('>B', mid['mid'])
-    except TypeError:
+    else:
         return struct.pack('>B', mid)
+
+
+class J1708MID:
+    def __init__(self, mid=None):
+        if isinstance(mid, J1708MID):
+            mid = mid.mid
+        elif isinstance(mid, dict):
+            mid = mid['mid']
+
+        self.mid = get_mid_value(mid)
+        self.name = get_mid_name(self.mid)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.mid})'
+
+    @property
+    def valid(self):
+        return is_valid(self.mid)
+
+    def encode(self):
+        return struct.pack('>B', self.mid)
 
 
 __all__ = [
     'decode',
     'encode',
-    'get_mid_name',
     'is_valid',
+    'get_mid_value',
+    'get_mid_name',
+    'J1708MID',
 ]

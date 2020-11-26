@@ -1,3 +1,4 @@
+import struct
 from fractions import Fraction
 
 from .pid_types import *
@@ -85,26 +86,41 @@ def get_bit_mask(bits):
         return None
 
 
-def decode(data):
-    if len(data) >= 4 and data[:3] == b'\xff\xff\xff':
-        pid_char = data[3]
-        pid = 768 + pid_char
-        start = 4
-    elif len(data) >= 3 and data[:2] == b'\xff\xff':
-        pid_char = data[2]
-        pid = 512 + pid_char
-        start = 3
-    elif len(data) >= 2 and data[:1] == b'\xff':
-        pid_char = data[1]
-        pid = 256 + pid_char
-        start = 2
-    elif len(data) >= 1 and data[:1] != b'\xff':
-        pid_char = data[0]
-        pid = pid_char
-        start = 1
+def get_pid_value(pid):
+    if hasattr(pid, 'pid'):
+        return pid.pid
+    elif isinstance(pid, dict):
+        return pid['pid']
     else:
-        # Invalid
-        return (None, data)
+        return pid
+
+
+def decode(data, pid=None):
+    if pid is None:
+        if len(data) >= 4 and data[:3] == b'\xff\xff\xff':
+            pid_char = data[3]
+            pid_val = 768 + pid_char
+            start = 4
+        elif len(data) >= 3 and data[:2] == b'\xff\xff':
+            pid_char = data[2]
+            pid_val = 512 + pid_char
+            start = 3
+        elif len(data) >= 2 and data[:1] == b'\xff':
+            pid_char = data[1]
+            pid_val = 256 + pid_char
+            start = 2
+        elif len(data) >= 1 and data[:1] != b'\xff':
+            pid_char = data[0]
+            pid_val = pid_char
+            start = 1
+        else:
+            # Invalid
+            return (None, data)
+    else:
+        # Used to make it easier to decode multi-section message contents
+        pid_val = get_pid_value(pid)
+        pid_char = pid_val % 256
+        start = 0
 
     if pid_char in range(0, 128):
         data_len = 1
@@ -125,10 +141,12 @@ def decode(data):
     val_bytes = data[start:end]
 
     # Ensure that the bytes extracted is the expected size
-    assert len(val_bytes) == data_len
+    if len(val_bytes) != data_len:
+        errmsg = f'Remaining msg {val_bytes.hex()} does not match expected data length {data_len}'
+        raise J1708DecodeError(errmsg)
 
     value = None
-    info = pid_info.get_pid_info(pid)
+    info = pid_info.get_pid_info(pid_val)
 
     if val_bytes == b'\xff' * data_len:
         value = f'{val_bytes.hex().upper()}: Not Available'
@@ -159,7 +177,7 @@ def decode(data):
                 else:
                     le_val = struct.unpack('<Q', val_bytes)
             else:
-                raise J1708DecodeError(f'Bad size {size} for encoding PID {pid} = {value} ({info})')
+                raise J1708DecodeError(f'Bad size {size} for encoding PID {pid_val} = {value} ({info})')
 
             fractional_val = float(le_val[0] * info['resolution'])
 
@@ -178,16 +196,26 @@ def decode(data):
         value = val_bytes.hex().upper()
 
     # Return a dictionary representing the PID and then the rest of the message
-    obj = {
-        'pid': pid,
-        'name': pid_name.get_pid_name(pid),
+    args = {
+        'pid': pid_val,
         'value': value,
-        #'raw': data[:end],
         'raw': val_bytes,
     }
     rest = data[end:]
 
-    return (obj, rest)
+    return (J1708PID(**args), rest)
+
+
+def decode_msg(msg):
+    pids = {}
+    while msg != b'':
+        param, msg = decode(msg)
+        if param:
+            pids[param.pid] = param
+        else:
+            # This message is invalid
+            raise J1708DecodeError(f'WARNING: unable to extract valid PID from {msg.hex()}')
+    return pids
 
 
 def _export_pid_value(value, mid=None):
@@ -210,11 +238,7 @@ def export(pids, mid):
     # Don't include the PID name or raw bytes in a JSON exportable object
     exported_pids = []
     for obj in pids:
-        exported_pids.append({
-            'pid': obj['pid'],
-            'name': obj['name'],
-            'value': _export_pid_value(obj['value'], mid=mid)
-        })
+        exported_pids.append(obj.export(mid))
     return exported_pids
 
 
@@ -279,40 +303,36 @@ def _encode_value(pid, value, size):
 
 
 def _encode_pid(pid, value):
-    try:
-        pid_val = pid['pid']
-    except TypeError:
-        pid_val = pid
-    pid_char = pid_val % 256
+    pid_char = pid % 256
 
     # Individual fields and types in J1708 are little-endian encoded
-    if pid_val <= 256:
+    if pid <= 256:
         msg = b''
-    elif pid_val <= 512:
+    elif pid <= 512:
         msg = b'\xFF'
-    elif pid_val <= 512:
+    elif pid <= 512:
         msg = b'\xFF\xFF'
-    elif pid_val <= 768:
+    elif pid <= 768:
         msg = b'\xFF\xFF\xFF'
     else:
-        raise J1708EncodeError(f'Cannot encode invalid PID value {pid_val}')
+        raise J1708EncodeError(f'Cannot encode invalid PID value {pid}')
     msg += struct.pack('<B', pid_char)
 
     if pid_char in range(0, 128):
         # 1-byte PID value
-        msg += _encode_value(pid_val, value, 1)
+        msg += _encode_value(pid, value, 1)
 
     elif pid_char in range(128, 192):
         # 2-byte PID value
-        msg += _encode_value(pid_val, value, 2)
+        msg += _encode_value(pid, value, 2)
 
     elif pid_char == 254:
         # PID 254 is variable length with no length field
-        msg += _encode_value(pid_val, value, None)
+        msg += _encode_value(pid, value, None)
 
     else:
         # All other values are variable length
-        encoded_value = _encode_value(pid_val, value, None)
+        encoded_value = _encode_value(pid, value, None)
         msg += struct.pack('<B', len(encoded_value)) + encoded_value
 
     return msg
@@ -324,8 +344,8 @@ def encode(pids):
 
     # PID 254's length is "the rest of the message" so ensure that if PID 254 is 
     # in the list that it is the last pid
-    if any(p['pid'] == 254 for p in pids) and pids[-1]['pid'] != 254:
-        pidlist = [p['pid'] for p in pids]
+    if any(p.pid == 254 for p in pids) and pids[-1].pid != 254:
+        pidlist = [p.pid for p in pids]
         errmsg = f'PID 254 must be last: {pidlist}'
         raise J1708EncodeError(errmsg)
 
@@ -333,33 +353,63 @@ def encode(pids):
     # extracted from the message in big-endian order (WTF people)
     msg = b''
     for pid in pids:
-        msg += _encode_pid(pid['pid'], pid['value'])
+        msg += _encode_pid(pid.pid, pid.value)
 
     return msg
 
 
-def PID(obj):
-    # Function that will eventually be turned into a standalone class
-    try:
-        if 'pid' in obj:
-            pid = {'pid': obj['pid'], 'value': None}
-    except TypeError:
-        if isinstance(obj, int):
-            # This is all the data that was provided so just return now
-            return {'pid': obj, 'value': None}
-        else:
-            raise TypeError(f'Not a valid PID: {obj}')
+# For now this is just a data class, but eventually the functions in this file 
+# will be moved into this class
+class J1708PID:
+    def __init__(self, pid=None, mid=None, value=None, raw=None):
+        if isinstance(pid, dict):
+            item = pid
 
-    if 'value' in obj:
-        pid['value'] = obj['value']
+            # The 'pid' key is assumed to be there
+            pid = item['pid']
+            if value is None and 'value' in item:
+                value = item['value']
+            if raw is None and 'raw' in item:
+                raw = item['raw']
 
-    return pid
+        elif isinstance(pid, J1708PID):
+            item = pid
+            pid = item.pid
+            if value is None:
+                value = item.value
+            if raw is None:
+                raw = item.raw
+
+        self.pid = pid
+        self.name = pid_name.get_pid_name(pid)
+        self.value = value
+        self.raw = raw
+
+        # Used during export
+        self._mid = mid
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(pid={self.pid}, mid={self._mid}, value={repr(self.value)}, raw={repr(self.raw)})'
+
+    def export(self, mid=None):
+        if self._mid is None and mid is not None:
+            self._mid = mid
+
+        out = {
+            'pid': self.pid,
+            'name': self.name,
+            'value': _export_pid_value(self.value, mid=self._mid),
+            #'raw': self.raw,
+        }
+        return out
 
 
 __all__ = [
+    'get_pid_value',
     'decode',
+    'decode_msg',
     'export',
     'encode',
-    'PID',
+    'J1708PID',
 ]
 

@@ -83,10 +83,12 @@ def format_pid_value(value, **kwargs):
 
 class J1708:
     def __init__(self, msg=None, timestamp=None, mid=None, pids=None, decode=True, ignore_checksum=False, rate=None, pid=None):
+        # Save msg if it was provided
+        self._raw = msg
         self.msg = None
         self.checksum = None
-        self.mid = None
-        self.pids = None
+        self._mid = None
+        self._pids = {}
         self.rate = rate
 
         if timestamp is None:
@@ -94,35 +96,69 @@ class J1708:
         else:
             self.time = timestamp
 
-        if msg is not None:
+        # the "pid" param can make it easier to use interactively when sending 
+        # a single PID
+        if pids is None and pid is not None:
+            pids = [pid]
+
+        if mid is not None and pids is not None:
+            self._mid = j1708_mids.J1708MID(mid)
+
+            if isinstance(pids, dict):
+                # If the any of the values in this dict are simple types like 
+                # int and str assume this is a single-PID dict rather than 
+                # a dict of multiple PIDs.
+                if any(isinstance(v, (int, str)) for v in pids.values()):
+                    self._init_pids([pids])
+                else:
+                    self._init_pids(pids.values())
+            elif isinstance(pids, list):
+                self._init_pids(pids)
+            else:
+                self._init_pids([pids])
+
+        elif msg is not None:
             self._init_from_msg(msg, ignore_checksum=ignore_checksum)
             if decode:
                 self.decode()
+
         else:
-            assert mid is not None
-            self.mid = j1708_mids.get_mid(mid)
+            raise J1708Error('Must supply "msg" or "mid" and "pids" params to create {self.__class__.__name__} object')
 
-            assert not (pids and pid)
-            if pids is None and pid is not None:
-                pids = pid
+    def _init_pids(self, pid_list):
+        for value in pid_list:
+            pid = j1708_pids.J1708PID(value)
+            self._pids[pid.pid] = pid
 
-            if isinstance(pids, list):
-                self.pids = [j1708_pids.PID(p) for p in pids]
-            else:
-                self.pids = [j1708_pids.PID(pids)]
+    @property
+    def pids(self):
+        # return a list of pids from the _pids
+        return self._pids.values()
 
-        self._pid_map = {}
-        for pid in self.pids:
-            self._pid_map[pid['pid']] = pid
+    @property
+    def mid(self):
+        return self._mid.mid
+
+    @property
+    def src(self):
+        return self._mid.name
+
+    def __repr__(self):
+        if self.msg is None:
+            repr_msg = self._raw
+        else:
+            repr_msg = self.msg
+
+        return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(self.pids)})'
 
     def __getitem__(self, key):
-        return self._pid_map[key]['value']
+        return self._pids[key].value
 
     def __setitem__(self, key, value):
-        if key in self._pid_map:
-            self._pid_map[key]['value'] = value
+        if key in self._pids:
+            self._pids[key].value = value
         else:
-            self._pid_map[key] = {'pid': key, 'value': value}
+            self._pids[key] = J1708PID(pid=key, value=value)
 
     @classmethod
     def calc_checksum(cls, msg):
@@ -166,26 +202,43 @@ class J1708:
         return self.checksum is not None
 
     def decode(self):
-        if self.mid is None:
-            self.mid, rest = j1708_mids.decode(self.msg)
-            self.pids = []
+        if self._mid is None:
+            self._mid, rest = j1708_mids.decode(self.msg)
 
             # assume the last byte of the message is the checksum
             body = rest[:-1]
-            while body != b'':
-                param, body = j1708_pids.decode(body)
-                if param:
-                    self.pids.append(param)
-                else:
-                    # This message is invalid
-                    raise J1708DecodeError(f'WARNING: unable to extract valid PID from {body}')
+            self._pids.update(j1708_pids.decode_msg(body))
+
+    @property
+    def is_multisection(self):
+        if 192 in self._pids or 448 in self._pids:
+            if len(self._pids) != 1:
+                errmsg = f'Multisection msgs should only have 1 PID ({repr(self)})'
+                raise J1708MultisectionError(errmsg)
+
+            # Last sanity check, ensure that the pid type is correct
+            param_id = 192 if 192 in self._pids else 448
+            if not isinstance(self._pids[param_id].value, j1708_pids.MultisectionParam):
+                errmsg = f'Incorrect multisection msg PID type ({repr(self)})'
+                raise J1708MultisectionError(errmsg)
+
+            return True
+        else:
+            return False
+
+    @property
+    def section(self):
+        if self.is_multisection:
+            param_id = 192 if 192 in self._pids else 448
+            return self._pids[param_id].value
+        return None
 
     def format_for_log(self, explicit_flags=False):
         self.decode()
-        out = f'{self.mid["name"]} ({self.mid["mid"]}): {self}'
-        for pid in self.pids:
-            out += f'\n  {pid["pid"]}: {pid["name"]}'
-            out += format_pid_value(mid=self.mid, pid=pid, value=pid['value'], explicit_flags=explicit_flags)
+        out = f'{self.mid.name} ({self.mid.mid}): {self}'
+        for pid in self._pids.values():
+            out += f'\n  {pid.pid}: {pid.name}'
+            out += format_pid_value(mid=self.mid, pid=pid, value=pid.value, explicit_flags=explicit_flags)
         return out
 
     def encode(self):
@@ -193,7 +246,7 @@ class J1708:
         # a message
         if self.msg is None:
             self.msg = j1708_mids.encode(self.mid)
-            self.msg += j1708_pids.encode(self.pids)
+            self.msg += b''.join(j1708_pids.encode(p) for p in self._pids.values())
             self.update_checksum()
 
         elif not self.is_valid():
@@ -218,18 +271,120 @@ class J1708:
         self.decode()
         obj = {
             'time': self.time,
-            'mid': self.mid['mid'],
-            'src': self.mid['name'],
+            'mid': self.mid,
+            'src': self.src,
             'checksum': self.checksum,
-            'pids': j1708_pids.export(self.pids, mid=self.mid),
-            'data': self.msg.hex(),
+            'pids': [p.export(mid=self._mid) for p in self._pids.values()],
         }
+
+        if self.msg is not None:
+            obj['data'] = self.msg.hex()
+
         return obj
 
     def json(self):
         return json.dumps(self.export())
 
 
+class J1708MultisectionMsg:
+    def __init__(self, first, msgs=None):
+        if not first.is_multisection:
+            errmsg = f'Cannot initialize multisection msg with non-multisection initial msg {repr(first)}'
+            raise J1708MultisectionError(errmsg)
+        if first.section.cur != 0:
+            errmsg = f'Cannot initialize multisection msg with non-first msg section {repr(first)}'
+            raise J1708MultisectionError(errmsg)
+
+        self._first = first
+        self._msgs = {first.section.cur: first}
+
+        # If messages were provided add them now
+        if msgs is not None:
+            if isinstance(msgs, msgs):
+                msgs = [m for m in msgs.values() if m is not first]
+            elif isinstance(msgs, (list, tuple)):
+                msgs = [m for m in msgs if m is not first]
+            else:
+                if msgs is not first:
+                    msgs = [msgs]
+                else:
+                    msgs = []
+
+            for msg in msgs:
+                self.append(msg)
+
+    def __repr__(self):
+        msgs = [m for m in self._msgs.values() if m is not self._first]
+        return f'{self.__class__.__name__}(first={repr(self._first)}, msgs={repr(msgs)})'
+
+    def match(self, msg):
+        return msg.is_multisection and\
+                self._first.mid == msg.mid and \
+                self._first.section.pid == msg.section.pid
+
+    def append(self, msg):
+        # Ensure this new message appears to be a valid section of this 
+        # multisection message
+        if not msg.is_multisection:
+            errmsg = f'Cannot append non-multisection msg: {repr(msg)}'
+            raise J1708MultisectionError(errmsg)
+        if self._first.mid != msg.mid:
+            errmsg = f'Cannot append msg with MID mismatch: {repr(self._first)} != {repr(msg)}'
+            raise J1708MultisectionError(errmsg)
+        if self._first.section.pid != msg.section.pid:
+            errmsg = f'Cannot append msg with PID mismatch: {repr(self._first)} != {repr(msg)}'
+            raise J1708MultisectionError(errmsg)
+        if self._first.section.last != msg.section.last:
+            errmsg = f'Cannot append msg with section count mismatch: {repr(self._first)} != {repr(msg)}'
+            raise J1708MultisectionError(errmsg)
+
+        # Don't check if the msg's section is already in the received messages, 
+        # just overwrite the old msg.
+        self._msgs[msg.section.cur] = msg
+
+    @property
+    def complete(self):
+        # The section numbers start at 0, so the length should be last + 1
+        return self._first.section.last in self._msgs and \
+                len(self._msgs) == (self._first.section.last + 1)
+
+    def merge(self):
+        if not self.complete:
+            errmsg = f'Cannot merge, section(s) missing: {repr(self._msgs)}'
+            raise J1708MultisectionError(errmsg)
+
+        sections = [m.section for m in self._msgs.values()]
+        merged = b''.join(s.data for s in sections)
+
+        if len(merged) != self._first.section.size:
+            errmsg = f'Merged msg size does not match initial message (first: {repr(self._first)}, len: {len(merged)}, merged: {repr(merged)})'
+            raise J1708MultisectionError(errmsg)
+
+        # Set the timestamp to be the timestamp of the last msg
+        last_msg = self._msgs[self._first.section.last]
+
+        # To decode correctly prefix the merged message with the length 
+        # specified in the first section
+        merged = struct.pack('<B', self._first.section.size) + merged
+
+        # Now decode
+        decoded_pid, rest = j1708_pids.decode(merged, pid=self._first.section.pid)
+
+        # There should not be any leftover msg data
+        if rest:
+            errmsg = f'Multisection msg decoding incomplete: rest={rest.hex()}, pid={repr(decoded_pid)}, msg={merged.hex()}'
+            raise J1708MultisectionError(errmsg)
+
+        args = {
+            'mid': self._first.mid,
+            'pids': decoded_pid,
+            'timestamp': last_msg.time,
+            #'msg': merged,
+        }
+        return J1708(**args)
+
+
 __all__ = [
     'J1708',
+    'J1708MultisectionMsg',
 ]

@@ -17,7 +17,7 @@ def get_mask_offset(mask):
 
 class J1708FlagEnum(enum.IntFlag):
     def __repr__(self):
-        return str(self)
+        return f'{self.__class__.__name__}({self.value})'
 
     def __str__(self):
         #return f'{self.name} ({self.value:X})'
@@ -28,6 +28,12 @@ class J1708FlagEnum(enum.IntFlag):
             return True
         else:
             return False
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
+        else:
+            return super().__eq__(other)
 
     def format(self, **kwargs):
         return str(self)
@@ -411,16 +417,18 @@ class PowerTakeoffStatus(J1708FlagEnum):
 class ParamRequest:
     def __init__(self, pid, mid):
         self.pid = pid
-        self.mid = mid
+        self.mid = mids.J1708MID(mid)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(pid={self.pid}, mid={self.mid.mid})'
 
     def format(self, **kwargs):
-        mid_str = mids.get_mid_name(self.mid)
         pid_str = pid_name.get_pid_name(self.pid)
-        return f'PID {self.pid} ({pid_str}) FROM {self.mid} ({mid_str})'
+        return f'PID {self.pid} ({pid_str}) FROM {self.mid.mid} ({self.mid.name})'
 
     @classmethod
     def decode(cls, msg_body):
-        return cls(msg_body[0], msg_body[1])
+        return cls(pid=msg_body[0], mid=msg_body[1])
 
     @classmethod
     def encode(cls, pid, mid):
@@ -519,6 +527,52 @@ class EngineRetarderStatus(StatusGroupEnum):
     CYL2_ACTIVE = (0b00000001, 0x01)
 
 
+# PID: 192
+class MultisectionParam:
+    # I'd call this a "multisegment" parameter, but the J1708 standard calls it 
+    # "multisection" so that's what it is called
+    def __init__(self, pid, cur, last, data, size=None):
+        self.pid = pid
+        self.cur = cur
+        self.last = last
+        self.data = data
+        self.size = size
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(pid={self.pid}, cur={self.cur}, last={self.last}, data={repr(self.data)}, size={self.size})'
+
+    def format(self, **kwargs):
+        if self.size is None:
+            return f'SECTION pid {self.pid} {self.cur}/{self.last}: {self.data.hex()}'
+        else:
+            return f'SECTION pid {self.pid} {self.cur}/{self.last} ({self.size}): {self.data.hex()}'
+
+    @classmethod
+    def decode(cls, msg_body):
+        pid, info, size = struct.unpack_from('>BBB', msg_body[:4])
+        last = (info & 0xF0) >> 4
+        cur = info & 0x0F
+
+        if cur == 0:
+            data = msg_body[3:]
+        else:
+            data = msg_body[2:]
+            size = None
+
+        args = {
+            'pid': pid,
+            'cur': cur,
+            'last': last,
+            'data': data,
+            'size': size,
+        }
+        return cls(**args)
+
+    @classmethod
+    def encode(cls, *args, **kwargs):
+        raise NotImplementedError
+
+
 # PID: 194
 class DTCCode(StatusGroupEnumAndValue):
     # The bit range for the "Value" portion of the PID, the value must be an 
@@ -538,33 +592,41 @@ class DTCCode(StatusGroupEnumAndValue):
 
 class DTC:
     def __init__(self, pid_sid_byte, code, count=None):
-        self.code = DTCCode.decode(code)
+        self._code = DTCCode.decode(code)
+        self._pid_sid_byte = pid_sid_byte
 
-        if DTCCode.EXTENDED in self.code['flags']:
+        if DTCCode.EXTENDED in self._code['flags']:
             self.ext = True
             pid_sid_byte += 256
         else:
             self.ext = False
 
-        if DTCCode.SID_INCL in self.code['flags']:
+        if DTCCode.SID_INCL in self._code['flags']:
             self.pid = None
             self.sid = pid_sid_byte
         else:
             self.pid = pid_sid_byte
             self.sid = None
 
-        if DTCCode.ACTIVE in self.code['flags']:
+        if DTCCode.ACTIVE in self._code['flags']:
             self.active = True
         else:
             self.active = False
 
-        if DTCCode.COUNT_INCL in self.code['flags']:
+        if DTCCode.COUNT_INCL in self._code['flags']:
             assert count is not None
-            self.count = count
+            if isinstance(count, int):
+                self.count = count
+            else:
+                # Assume bytes
+                self.count = count[0]
         else:
             self.count = None
 
-        self.fmi = FMI(self.code['FMI'])
+        self.fmi = FMI(self._code['FMI'])
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(pid_sid_byte={self._pid_sid_byte}, code={repr(self._code)}, count={self.count})'
 
     def format(self, mid, **kwargs):
         if self.active:
@@ -629,36 +691,40 @@ class DTCRequestCode(StatusGroupEnumAndValue):
 
 class DTCRequest:
     def __init__(self, mid, pid_sid_byte, code):
-        self.mid = mid
-        self.code = DTCRequestCode.decode(code)
+        self._mid = mids.J1708MID(mid)
+        self.mid = self._mid.mid
+        self._code = DTCRequestCode.decode(code)
+        self._pid_sid_byte = pid_sid_byte
 
-        if DTCRequestCode.EXTENDED in self.code['flags']:
+        if DTCRequestCode.EXTENDED in self._code['flags']:
             self.ext = True
             pid_sid_byte += 256
         else:
             self.ext = False
 
-        if DTCRequestCode.SID_INCL in self.code['flags']:
+        if DTCRequestCode.SID_INCL in self._code['flags']:
             self.pid = None
             self.sid = pid_sid_byte
         else:
             self.pid = pid_sid_byte
             self.sid = None
 
-        self.fmi = FMI(self.code['FMI'])
-        self.type = DTC_REQ_TYPE(self.code['DTC_REQ_TYPE'])
+        self.fmi = FMI(self._code['FMI'])
+        self.type = DTC_REQ_TYPE(self._code['DTC_REQ_TYPE'])
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(mid={self._mid.mid}, pid_sid_byte={self._pid_sid_byte}, code={repr(self._code)})'
 
     def format(self, **kwargs):
-        mid_str = mids.get_mid_name(self.mid)
         if self.type == DTC_REQ_TYPE.CLEAR_ALL_DTCS:
-            return f'{self.type.name} {mid_str} ({self.mid})'
+            return f'{self.type.name} {self._mid.name} ({self._mid.mid})'
         else:
             if self.sid is not None:
                 sid_str = sid_consts.get_sid_string(self.mid, self.sid)
-                return f'{self.type.name} {mid_str} ({self.mid}): SID {self.sid} ({sid_str})'
+                return f'{self.type.name} {self._mid.name} ({self._mid.mid}): SID {self.sid} ({sid_str})'
             else:
                 pid_str = pid_name.get_pid_name(self.pid)
-                return f'{self.type.name} {mid_str} ({self.mid}): PID {self.pid} ({pid_str})'
+                return f'{self.type.name} {self._mid.name} ({self._mid.mid}): PID {self.pid} ({pid_str})'
 
     @classmethod
     def decode(cls, msg_body):
@@ -666,57 +732,75 @@ class DTCRequest:
         return cls(mid=msg_body[1], pid_sid_byte=msg_body[2], code=msg_body[3])
 
     @classmethod
-    def encode(cls, arg=None, **kwargs):
+    def encode(cls, mid=None, pid=None, sid=None, fmi=None, **kwargs):
+        # Awkward workaround since the value dict uses a key name that is 
+        # a reserved function name
+        if 'type' in kwargs:
+            req_type = kwargs['type']
+        elif 'req_type' in kwargs:
+            req_type = kwargs['req_type']
+
         flags = []
-        if arg is not None:
-            assert isinstance(arg, DTCRequest)
+        if isinstance(mid, DTCRequest):
+            item = mid
+            mid = item.mid
 
-            mid = args[0].mid
-
-            if args[0].sid is not None:
-                flags.append('SID_INCL')
-                sid_or_pid = args[0].sid
+            if item.sid is not None:
+                sid = item.sid
             else:
-                flags.append('PID_INCL')
-                sid_or_pid = args[0].pid
+                pid = item.pid
 
-            req_type = args[0].type
-            fmi = args[0].fmi
+            req_type = item.type
+            fmi = item.fmi
 
+        elif isinstance(mid, dict):
+            item = mid
+            if 'mid' in item:
+                mid = item['mid']
+            if 'sid' in item and sid is None:
+                sid = item['sid']
+            if 'pid' in item and pid is None:
+                pid = item['pid']
+            if 'type' in item and req_type is None:
+                req_type = item['type']
+            if 'fmi' in item and fmi is None:
+                fmi = item['fmi']
+
+        # For now only the diagnostic tool side of the DTC request PID is 
+        # implemented
+        if mid is None:
+            raise J1708EncodeError('Unable to encode PID 195 without destination MID')
+
+        if pid is not None and sid is not None:
+            raise J1708EncodeError(f'Unable to encode PID 195 with both PID and SID (msg: {pid}, {sid})')
+        elif pid is None and sid is None:
+            # Unless the request type is CLEAR_ALL_DTCS (in which case the 
+            # sid/pid byte is ignored) a sid or pid must be included
+            if DTC_REQ_TYPE.CLEAR_ALL_DTCS == req_type:
+                # Default to a SID of 0
+                flags.append(DTCRequestCode.SID_INCL)
+                sid_or_pid = 0
+            else:
+                raise J1708EncodeError('Unable to encode PID 195 without PID or SID')
+        elif sid is not None:
+            flags.append(DTCRequestCode.SID_INCL)
+            sid_or_pid = sid
         else:
-            # For now only the diagnostic tool side of the DTC request PID is 
-            # implemented
-            if 'mid' not in kwargs:
-                raise J1708EncodeError(f'Unable to encode PID 195 without destination MID (msg: {kwargs})')
-            else:
-                mid = kwargs['mid']
+            flags.append(DTCRequestCode.PID_INCL)
+            sid_or_pid = pid
 
-            if 'pid' in kwargs and 'sid' in kwargs:
-                raise J1708EncodeError(f'Unable to encode PID 195 with both PID and SID (msg: {kwargs})')
-            elif 'pid' not in kwargs and 'sid' not in kwargs:
-                raise J1708EncodeError(f'Unable to encode PID 195 without PID or SID (msg: {kwargs})')
-            elif 'sid' in kwargs:
-                flags.append('SID_INCL')
-                sid_or_pid = kwargs['sid']
-            else:
-                flags.append('PID_INCL')
-                sid_or_pid = kwargs['pid']
+        # Default the request type to ASCII_DESCRIPTION
+        if req_type is None:
+            req_type = DTC_REQ_TYPE.ASCII_DESCRIPTION
 
-            if 'type' not in kwargs:
-                raise J1708EncodeError(f'Unable to encode PID 195 request type (msg: {kwargs})')
-            else:
-                req_type = kwargs['type']
-
-            if 'fmi' in kwargs:
-                fmi = kwargs['fmi']
-            else:
-                fmi = 'RESERVED'
+        if fmi is None:
+            fmi = FMI.RESERVED
 
         if sid_or_pid >= 256:
-            flags.append('EXTENDED')
+            flags.append(DTCRequestCode.EXTENDED)
             sid_or_pid -= 256
         else:
-            flags.append('STANDARD')
+            flags.append(DTCRequestCode.STANDARD)
 
         # Construct the DTC request code byte:
         code_kwargs = {
@@ -752,27 +836,30 @@ class DTCResponseCode(StatusGroupEnumAndValue):
 
 class DTCResponse:
     def __init__(self, pid_sid_byte, code, info):
-        self.code = DTCResponseCode.decode(code)
+        self._code = DTCResponseCode.decode(code)
+        self._pid_sid_byte = pid_sid_byte
 
-        if DTCResponseCode.EXTENDED in self.code['flags']:
+        if DTCResponseCode.EXTENDED in self._code['flags']:
             self.ext = True
             pid_sid_byte += 256
         else:
             self.ext = False
 
-        if DTCResponseCode.SID_INCL in self.code['flags']:
+        if DTCResponseCode.SID_INCL in self._code['flags']:
             self.pid = None
             self.sid = pid_sid_byte
         else:
             self.pid = pid_sid_byte
             self.sid = None
 
-        self.fmi = FMI(self.code['FMI'])
-        self.type = DTC_RESP_TYPE(self.code['DTC_RESP_TYPE'])
+        self.fmi = FMI(self._code['FMI'])
+        self.type = DTC_RESP_TYPE(self._code['DTC_RESP_TYPE'])
         self.info = info
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(pid_sid_byte={self._pid_sid_byte}, code={repr(self._code)}, info={repr(self.info)})'
+
     def format(self, **kwargs):
-        mid_str = mids.get_mid_name(self.mid)
         if self.type == DTC_RESP_TYPE.ALL_DTCS_CLEARED:
             return f'{self.type.name}'
         elif self.type == DTC_RESP_TYPE.DTC_CLEARED:
@@ -798,3 +885,44 @@ class DTCResponse:
         raise NotImplementedError
 
 
+# PID: 448
+class Page2MultisectionParam(MultisectionParam):
+    def __init__(self, pid, cur, last, data, orig_size=None):
+        super().__init(pid, cur, last, data, orig_size)
+        # add 256 to the PID
+        self.pid += 256
+
+
+__all__ = [
+    'J1708FlagEnum',
+    'StatusGroupEnum',
+    'StatusGroupEnumAndValue',
+    'FMI',
+    'BrakeSystemAirPressureLowWarningSwitchStatus',
+    'AxleLiftStatus',
+    'AxleSliderStatus',
+    'CargoSecurement',
+    'IndicatorLampStatus',
+    'ABSControlStatus',
+    'BrakeSwitchStatus',
+    'ParkingBrakeStatus',
+    'IdleShutdownTimer',
+    'RoadSpeedLimitStatus',
+    'CruiseControlStatus',
+    'PowerTakeoffStatus',
+    'ParamRequest',
+    'ATCControlStatus',
+    'AuxInputStatus2',
+    'AuxInputStatus1',
+    'EngineRetarderStatus',
+    'MultisectionParam',
+    'DTCCode',
+    'DTC',
+    'DTC_REQ_TYPE',
+    'DTCRequestCode',
+    'DTCRequest',
+    'DTC_RESP_TYPE',
+    'DTCResponseCode',
+    'DTCResponse',
+    'Page2MultisectionParam',
+]
