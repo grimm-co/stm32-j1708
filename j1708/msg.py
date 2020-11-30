@@ -33,8 +33,8 @@ def make_pid_dict_string(value, explicit_flags=False, **kwargs):
 
 
 def make_pid_list_string(pid, value, explicit_flags=False, **kwargs):
-    if 'raw' in pid:
-        prefix_str = f'\n    {pid["raw"].hex().upper()}:'
+    if pid.raw is not None:
+        prefix_str = f'\n    {pid.raw.hex().upper()}:'
     else:
         prefix_str = f'\n    '
 
@@ -235,7 +235,7 @@ class J1708:
 
     def format_for_log(self, explicit_flags=False):
         self.decode()
-        out = f'{self.mid.name} ({self.mid.mid}): {self}'
+        out = f'{self._mid.name} ({self._mid.mid}): {self}'
         for pid in self._pids.values():
             out += f'\n  {pid.pid}: {pid.name}'
             out += format_pid_value(mid=self.mid, pid=pid, value=pid.value, explicit_flags=explicit_flags)
@@ -259,13 +259,18 @@ class J1708:
         return self.msg
 
     def __str__(self):
-        if self.msg is None:
+        if self.msg is not None:
+            msg = self.msg.hex()
+        elif self._raw is not None:
+            msg = self._raw
+        else:
+            # Need to encode this msg before we can display it
             self.encode()
 
         if self.checksum is not None:
-            return f'{self.msg.hex().upper()} ({self.checksum:X})'
+            return f'{msg.upper()} ({self.checksum:X})'
         else:
-            return f'{self.msg.hex().upper()} ({self.checksum})'
+            return f'{msg.upper()} ({self.checksum})'
 
     def export(self):
         self.decode()
@@ -278,7 +283,23 @@ class J1708:
         }
 
         if self.msg is not None:
-            obj['data'] = self.msg.hex()
+            msg = self.msg
+        elif self._raw is not None:
+            # If no encoded msg is created use the raw message data if available
+            msg = self._raw
+
+        # Turn the message into something that can be easily serialized by the
+        # json module
+        if isinstance(msg, str):
+            # String instances are already strings of hex chars, and don't need 
+            # to be modified.
+            obj['data'] = msg
+        elif isinstance(msg, bytes):
+            obj['data'] = msg.hex()
+        elif isinstance(msg, tuple) and isinstance(msg[0], str):
+            obj['data'] = [m for m in msg]
+        elif isinstance(msg, tuple) and isinstance(msg[0], bytes):
+            obj['data'] = [m.hex() for m in msg]
 
         return obj
 
@@ -379,7 +400,9 @@ class J1708MultisectionMsg:
             'mid': self._first.mid,
             'pids': decoded_pid,
             'timestamp': last_msg.time,
-            #'msg': merged,
+
+            # Pass raw message sections to the object being created
+            'msg': tuple(m.msg for m in self._msgs.values()),
         }
         return J1708(**args)
 
