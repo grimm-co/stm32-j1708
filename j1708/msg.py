@@ -151,6 +151,12 @@ class J1708:
 
         return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(self.pids)})'
 
+    def __iter__(self):
+        return self._pids.__iter__()
+
+    def __contains__(self, key):
+        return key in self._pids
+
     def __getitem__(self, key):
         return self._pids[key].value
 

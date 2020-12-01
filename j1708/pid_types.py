@@ -359,12 +359,12 @@ class ABSControlStatus(StatusGroupEnum):
 # PID: 65
 class BrakeSwitchStatus(StatusGroupEnum):
     # Use bits that don't matter to ensure that all the "OFF" values are unique
-    ERROR      = (0b11111011, 0x0C)
-    ON         = (0b11110111, 0x0C)
-    OFF        = (0b11110011, 0x0C)
-    LAMP_ERROR = (0b11111110, 0x03)
-    LAMP_ON    = (0b11111101, 0x03)
-    LAMP_OFF   = (0b11111100, 0x03)
+    BRAKE_SYSTEM_ERROR = (0b11111011, 0x0C)
+    BRAKE_SYSTEM_ON    = (0b11110111, 0x0C)
+    BRAKE_SYSTEM_OFF   = (0b11110011, 0x0C)
+    BRAKE_SWITCH_ERROR = (0b11111110, 0x03)
+    BRAKE_SWITCH_ON    = (0b11111101, 0x03)
+    BRAKE_SWITCH_OFF   = (0b11111100, 0x03)
 
 
 # PID: 70
