@@ -130,7 +130,7 @@ def decode(data, pid=None):
         end = start + data_len
     elif pid_char == 254:
         # The rest of the message is the data
-        end = -1
+        end = len(data)
         data_len = len(data[start:])
     else:
         # Variable length, the first data char is the length
