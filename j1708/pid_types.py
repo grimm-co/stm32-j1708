@@ -690,7 +690,7 @@ class DTCRequestCode(StatusGroupEnumAndValue):
 
 
 class DTCRequest:
-    def __init__(self, mid, pid_sid_byte, code):
+    def __init__(self, mid, pid_sid_byte, code=None):
         self._mid = mids.J1708MID(mid)
         self.mid = self._mid.mid
         self._code = DTCRequestCode.decode(code)
@@ -728,8 +728,7 @@ class DTCRequest:
 
     @classmethod
     def decode(cls, msg_body):
-        num_bytes = msg_body[0]
-        return cls(mid=msg_body[1], pid_sid_byte=msg_body[2], code=msg_body[3])
+        return cls(mid=msg_body[0], pid_sid_byte=msg_body[1], code=msg_body[2])
 
     @classmethod
     def encode(cls, mid=None, pid=None, sid=None, fmi=None, **kwargs):
@@ -877,8 +876,7 @@ class DTCResponse:
 
     @classmethod
     def decode(cls, msg_body):
-        num_bytes = msg_body[0]
-        return cls(msg_body[1], msg_body[2], msg_body[3:3 + num_bytes])
+        return cls(msg_body[0], msg_body[1], msg_body[2:])
 
     @classmethod
     def encode(cls, *args, **kwargs):
