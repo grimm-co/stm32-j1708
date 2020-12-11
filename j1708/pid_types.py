@@ -858,7 +858,7 @@ class DTCResponse:
     def __repr__(self):
         return f'{self.__class__.__name__}(pid_sid_byte={self._pid_sid_byte}, code={repr(self._code)}, info={repr(self.info)})'
 
-    def format(self, **kwargs):
+    def format(self, mid, **kwargs):
         if self.type == DTC_RESP_TYPE.ALL_DTCS_CLEARED:
             return f'{self.type.name}'
         elif self.type == DTC_RESP_TYPE.DTC_CLEARED:
