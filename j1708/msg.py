@@ -149,7 +149,7 @@ class J1708:
         else:
             repr_msg = self.msg
 
-        return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(self.pids)})'
+        return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(list(self.pids))})'
 
     def __iter__(self):
         return self._pids.__iter__()
