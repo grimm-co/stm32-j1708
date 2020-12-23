@@ -131,6 +131,7 @@ static void j1708_wait_rx_complete(void) {
 void j1708_write_msg(msg_t *msg) {
     uint16_t data;
     uint32_t len;
+    int32_t event_status = 0;
 
     len = msg->len;
 
@@ -138,7 +139,7 @@ void j1708_write_msg(msg_t *msg) {
      * bytes received match the sent bytes. */
     memcpy(tx_msg.buf, msg->buf, len);
 
-    do {
+    while (event_status <= 0) {
         /* If a message is being received, wait until it is complete. */
         j1708_wait_rx_complete();
 
@@ -150,12 +151,16 @@ void j1708_write_msg(msg_t *msg) {
             USART_DR(J1708_UART) = data;
             usart_wait_send_ready(J1708_UART);
 
-            /* If there is a value set in the event already, abort the send. */
+            /* If the event is set, abort the send (in theory this should not 
+             * happen until the event has finished transmitting. */
             if (event_nowait(&msg_sent_event) != 0) {
                 break;
             }
         }
-    } while (event_wait(&msg_sent_event) > 0);
+
+        /* Block here until an event status is set */
+        event_status = event_wait(&msg_sent_event);
+    }
 }
 
 #if 1
