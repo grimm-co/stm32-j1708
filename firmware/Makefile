@@ -2,60 +2,98 @@
 
 ###############################################################################
 
-PROGRAM  = stm32-j1708
-CROSS   ?= arm-none-eabi-
-OBJS     = $(patsubst %.c,%.o,$(wildcard *.c))
-DEPS     = $(patsubst %.c,%.d,$(wildcard *.c))
+PROJECT := stm32-j1708
+DEVICE  := stm32f103x8
+SRC     := $(wildcard *.c)
+OBJS    := $(SRC:%.c=%.o)
+
+ELF      := $(PROJECT).elf
+BIN      := $(PROJECT).bin
+HEX      := $(PROJECT).hex
+MAP      := $(PROJECT).map
+LIST     := $(PROJECT).list
+
+OPENCM3_DIR := libopencm3
+
+# Defines all the standard gcc executables (defined above)
+include $(OPENCM3_DIR)/mk/gcc-config.mk
+
+#PREFIX   ?= arm-none-eabi-
+#CC       ?= $(PREFIX)gcc
+#LD       ?= $(PREFIX)ld
+#OBJCOPY  ?= $(PREFIX)objcopy
+#OBJDUMP  ?= $(PREFIX)objdump
+#SIZE     ?= $(PREFIX)size
+#NM       ?= $(PREFIX)nm
+
+LIBC     := $(shell $(CC) $(CFLAGS) --print-file-name=libc.a)
+LIBGCC   := $(shell $(CC) $(CFLAGS) --print-libgcc-file-name)
+LIBNOSYS := $(shell $(CC) $(CFLAGS) --print-file-name=libnosys.a)
+LDLIBS   = -Wl,--start-group $(LIBC) $(LIBGCC) $(LIBNOSYS) -Wl,--end-group
+LDFLAGS  = -static -nostartfiles
+CPPFLAGS = -MMD -MP
+CFLAGS   = -O2 -std=gnu99 \
+	-Wall -Wextra -Wimplicit-function-declaration \
+	-Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
+	-Wundef -Wshadow -fno-common -Wstrict-prototypes \
+	-ffunction-sections -fdata-sections
 
 ###############################################################################
 
-CC       = $(CROSS)gcc
-LD       = $(CROSS)ld
-OBJCOPY  = $(CROSS)objcopy
-OBJDUMP  = $(CROSS)objdump
-SIZE     = $(CROSS)size
-NM       = $(CROSS)nm
+.PHONY: build clean distclean flash size symbols opencm3
 
-ELF      = $(PROGRAM).elf
-BIN      = $(PROGRAM).bin
-HEX      = $(PROGRAM).hex
-MAP      = $(PROGRAM).map
-DMP      = $(PROGRAM).out
+# Default build target
+build: $(BIN) $(HEX) $(LIST) size
 
-# Board-specific defs
-ARCH_FLAGS = -DSTM32F1 -mthumb -mcpu=cortex-m3 -msoft-float -mfix-cortex-m3-ldrd
-LDSCRIPT   = libopencm3/lib/stm32/f1/stm32f103x8.ld
-LIBOPENCM3 = libopencm3/lib/libopencm3_stm32f1.a
-OPENCM3_MK = lib/stm32/f1
-OPENOCD_FILES = /usr/share/openocd
+###############################################################################
 
-# C options
-CFLAGS  += -O2 -std=gnu99 \
-			-Wall -Wextra -Wimplicit-function-declaration \
-			-Wredundant-decls -Wmissing-prototypes -Wstrict-prototypes \
-			-Wundef -Wshadow -fno-common -Wstrict-prototypes \
-			-ffunction-sections -fdata-sections -MD
-CFLAGS  += $(ARCH_FLAGS) -Ilibopencm3/include/
+# Defines all of the link script options and rules based on DEVICE
+#include $(OPENCM3_DIR)/mk/genlink-config.mk
 
-LIBC     = $(shell $(CC) $(CFLAGS) --print-file-name=libc.a)
-LIBGCC   = $(shell $(CC) $(CFLAGS) --print-libgcc-file-name)
+# I don't like using this because it requires building the libopencm3 library 
+# first and then running make on the project.  This seems silly.
+# Instead all of the appropriate output is defined here
+LDSCRIPT   := generated.$(DEVICE).ld
+CPPFLAGS   += -DSTM32F1 -DSTM32F103X8
+ARCH_FLAGS := -march=armv7-m -mtune=cortex-m3 -mthumb -msoft-float -mfix-cortex-m3-ldrd
+LIBNAME    := opencm3_stm32f1.a
+#LDLIBS     += -l$(LIBNAME)
+LDLIBS     += $(OPENCM3_DIR)/lib/lib$(LIBNAME)
+LIBDEPS    += $(OPENCM3_DIR)/lib/lib$(LIBNAME)
+LDFLAGS    += -L$(OPENCM3_DIR)/lib
+CPPFLAGS   += -I$(OPENCM3_DIR)/include
 
-# LDPATH is required for libopencm3 ld scripts to work.
-LDPATH   = libopencm3/lib/
-#LDFLAGS += -L$(LDPATH) -T$(LDSCRIPT) -Map $(MAP) --gc-sections --print-gc-sections
-LDFLAGS += -L$(LDPATH) -T$(LDSCRIPT) -Map $(MAP) --gc-sections
-LDLIBS  += $(LIBOPENCM3) $(LIBC) $(LIBGCC)
+# Defines all of the target specific compile options based on DEVICE
+include $(OPENCM3_DIR)/mk/genlink-rules.mk
 
-.PHONY: all build clean distclean flash size symbols openocd
+# Board-specific defs (now handled by the libopencm3/mk/genlink-config.mk file)
+#ARCH_FLAGS = -DSTM32F1 -mthumb -march=cortex-m3 -msoft-float -mfix-cortex-m3-ldrd
+#LDSCRIPT   = $(OPENCM3_DIR)/lib/stm32/f1/stm32f103x8.ld
+#LIBOPENCM3 = $(OPENCM3_DIR)/lib/libopencm3_stm32f1.a
 
-all: build
+###############################################################################
 
-build: $(BIN) $(HEX) $(DMP) size
+LDPATH   = $(OPENCM3_DIR)/lib/
+#LDFLAGS += -Wl,-T$(LDSCRIPT) -Wl,-Map=$(MAP) -Wl,--gc-sections -Wl,--print-gc-sections
+LDFLAGS += -Wl,-T$(LDSCRIPT) -Wl,-Map=$(MAP) -Wl,--gc-sections
 
-$(ELF): $(LDSCRIPT) $(OBJS) $(LIBOPENCM3)
-	$(LD) -o $@ $(LDFLAGS) $(OBJS) $(LDLIBS)
+DEPS    := $(SRC:%c=%.d)
 
-$(DMP): $(ELF)
+-include $(DEPS)
+
+###############################################################################
+
+opencm3: $(OPENCM3_DIR)/lib/lib$(LIBNAME).a
+$(OPENCM3_DIR)/lib/lib$(LIBNAME).a:
+	$(MAKE) -C $(OPENCM3_DIR) TARGETS=stm32/f1 V=1
+
+# Standard compilation rules
+#include $(OPENCM3_DIR)/mk/gcc-rules.mk
+
+$(ELF): $(LIBDEPS) $(LDSCRIPT) $(OBJS)
+	$(LD) $(OBJS) $(LDLIBS) $(LDFLAGS) $(ARCH_FLAGS) -o $@
+
+$(LIST): $(ELF)
 	$(OBJDUMP) -d $< > $@
 
 %.hex: %.elf
@@ -64,30 +102,22 @@ $(DMP): $(ELF)
 %.bin: %.elf
 	$(OBJCOPY) -S -O binary $< $@
 
-%.o: %.c $(LIBOPENCM3)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-%.html: %.md
-	markdown $< > $@
-
-$(LIBOPENCM3):
-	git submodule init
-	git submodule update --init
-	CFLAGS="$(CFLAGS)" $(MAKE) -C libopencm3 $(OPENCM3_MK) PREFIX=$(patsubst %,%,$(CROSS)) V=1
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(ARCH_FLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(DEPS) $(DOCS) $(ELF) $(HEX) $(BIN) $(MAP) $(DMP)
+	rm -f $(OBJS) $(LDSCRIPT) $(ELF) $(HEX) $(BIN) $(MAP) $(LIST)
 
 distclean: clean
-	$(MAKE) -C libopencm3 clean
-	rm -f *~ *.swp *.hex *.bin
+	rm -f $(DEPS)
+	$(MAKE) -C $(OPENCM3_DIR) clean
 
 flash: $(HEX)
 	st-flash --reset --format ihex write $<
 
-size: $(PROGRAM).elf
+size: $(PROJECT).elf
 	@echo ""
-	@$(SIZE) $(PROGRAM).elf
+	@$(SIZE) $(PROJECT).elf
 	@echo ""
 
 symbols: $(ELF)

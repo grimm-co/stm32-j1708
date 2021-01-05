@@ -3,7 +3,8 @@
 *.map
 *.hex
 *.elf
-*.out
+*.list
 *.bin
+generated.*
 __pycache__/
 *.egg-info/
