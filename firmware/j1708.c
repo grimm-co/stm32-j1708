@@ -102,6 +102,7 @@ void j1708_setup(void) {
     msg_queue_init(&j1708_rx_queue);
     msg_init(&rx_msg);
     msg_init(&tx_msg);
+    event_init(&msg_sent_event);
 
     timer_set_handler(EOM_TIMER, j1708_eom_timer_handler);
     timer_set_handler(COL_TIMER, j1708_col_timer_handler);
@@ -145,7 +146,7 @@ void j1708_write_msg(msg_t *msg) {
 
         /* Set the transmit message length and try to send it. */
         tx_msg.len = len;
-        event_init(&msg_sent_event);
+        event_clear(&msg_sent_event);
         for (uint32_t i = 0; i < len; i++) {
             data = tx_msg.buf[i];
             USART_DR(J1708_UART) = data;
@@ -153,7 +154,7 @@ void j1708_write_msg(msg_t *msg) {
 
             /* If the event is set, abort the send (in theory this should not 
              * happen until the event has finished transmitting. */
-            if (event_nowait(&msg_sent_event) != 0) {
+            if (event_isset(&msg_sent_event)) {
                 break;
             }
         }

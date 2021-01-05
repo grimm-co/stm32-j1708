@@ -1,7 +1,7 @@
 
 .PHONY: firmware clean distclean flash
 
-firmware:
+build:
 clean:
 distclean:
 flash:

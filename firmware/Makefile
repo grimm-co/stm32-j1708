@@ -46,9 +46,11 @@ LDPATH   = libopencm3/lib/
 LDFLAGS += -L$(LDPATH) -T$(LDSCRIPT) -Map $(MAP) --gc-sections
 LDLIBS  += $(LIBOPENCM3) $(LIBC) $(LIBGCC)
 
-.PHONY: firmware clean distclean flash size symbols openocd
+.PHONY: all build clean distclean flash size symbols openocd
 
-firmware: $(BIN) $(HEX) $(DMP) size
+all: build
+
+build: $(BIN) $(HEX) $(DMP) size
 
 $(ELF): $(LDSCRIPT) $(OBJS) $(LIBOPENCM3)
 	$(LD) -o $@ $(LDFLAGS) $(OBJS) $(LDLIBS)
