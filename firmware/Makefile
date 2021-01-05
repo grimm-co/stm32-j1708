@@ -26,11 +26,13 @@ include $(OPENCM3_DIR)/mk/gcc-config.mk
 #SIZE     ?= $(PREFIX)size
 #NM       ?= $(PREFIX)nm
 
-LIBC     := $(shell $(CC) $(CFLAGS) --print-file-name=libc.a)
-LIBGCC   := $(shell $(CC) $(CFLAGS) --print-libgcc-file-name)
-LIBNOSYS := $(shell $(CC) $(CFLAGS) --print-file-name=libnosys.a)
-LDLIBS   = -Wl,--start-group $(LIBC) $(LIBGCC) $(LIBNOSYS) -Wl,--end-group
+#LIBC     := $(shell $(CC) $(CFLAGS) --print-file-name=libc.a)
+#LIBGCC   := $(shell $(CC) $(CFLAGS) --print-libgcc-file-name)
+#LIBNOSYS := $(shell $(CC) $(CFLAGS) --print-file-name=libnosys.a)
+#LDLIBS   = -Wl,--start-group $(LIBC) $(LIBGCC) $(LIBNOSYS) -Wl,--end-group
+LDLIBS   = -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 LDFLAGS  = -static -nostartfiles
+
 CPPFLAGS = -MMD -MP
 CFLAGS   = -O2 -std=gnu99 \
 	-Wall -Wextra -Wimplicit-function-declaration \
@@ -53,15 +55,18 @@ build: $(BIN) $(HEX) $(LIST) size
 # I don't like using this because it requires building the libopencm3 library 
 # first and then running make on the project.  This seems silly.
 # Instead all of the appropriate output is defined here
-LDSCRIPT   := generated.$(DEVICE).ld
-CPPFLAGS   += -DSTM32F1 -DSTM32F103X8
-ARCH_FLAGS := -march=armv7-m -mtune=cortex-m3 -mthumb -msoft-float -mfix-cortex-m3-ldrd
-LIBNAME    := opencm3_stm32f1.a
-#LDLIBS     += -l$(LIBNAME)
-LDLIBS     += $(OPENCM3_DIR)/lib/lib$(LIBNAME)
-LIBDEPS    += $(OPENCM3_DIR)/lib/lib$(LIBNAME)
-LDFLAGS    += -L$(OPENCM3_DIR)/lib
-CPPFLAGS   += -I$(OPENCM3_DIR)/include
+LDSCRIPT     := generated.$(DEVICE).ld
+DEVICES_DATA := $(OPENCM3_DIR)/ld/devices.data
+CPPFLAGS     += -DSTM32F1 -DSTM32F103X8
+ARCH_FLAGS   := -march=armv7-m -mtune=cortex-m3 -mthumb -msoft-float -mfix-cortex-m3-ldrd
+LIBNAME      := opencm3_stm32f1
+#LDLIBS       += $(OPENCM3_DIR)/lib/lib$(LIBNAME).a
+LDLIBS       += -l$(LIBNAME)
+LDLIBS       += -specs=nosys.specs -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
+LIBDEPS      += $(OPENCM3_DIR)/lib/lib$(LIBNAME).a
+LDPATH       := $(OPENCM3_DIR)/lib
+LDFLAGS      += -L$(LDPATH)
+CPPFLAGS     += -I$(OPENCM3_DIR)/include
 
 # Defines all of the target specific compile options based on DEVICE
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
@@ -73,7 +78,6 @@ include $(OPENCM3_DIR)/mk/genlink-rules.mk
 
 ###############################################################################
 
-LDPATH   = $(OPENCM3_DIR)/lib/
 #LDFLAGS += -Wl,-T$(LDSCRIPT) -Wl,-Map=$(MAP) -Wl,--gc-sections -Wl,--print-gc-sections
 LDFLAGS += -Wl,-T$(LDSCRIPT) -Wl,-Map=$(MAP) -Wl,--gc-sections
 
@@ -91,7 +95,7 @@ $(OPENCM3_DIR)/lib/lib$(LIBNAME).a:
 #include $(OPENCM3_DIR)/mk/gcc-rules.mk
 
 $(ELF): $(LIBDEPS) $(LDSCRIPT) $(OBJS)
-	$(LD) $(OBJS) $(LDLIBS) $(LDFLAGS) $(ARCH_FLAGS) -o $@
+	$(LD) $(LDFLAGS) $(ARCH_FLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 $(LIST): $(ELF)
 	$(OBJDUMP) -d $< > $@
