@@ -117,11 +117,11 @@ class Iface:
         """
         return self.readmsg(timeout=timeout)
 
-    def run(self, decode=True, ignore_checksums=False, log_filename=None):
+    def run(self, decode=True, ignore_checksum=False, log_filename=None):
         """
         Dump and decode J1708 messages until interrupted.
         """
-        log = Log(decode=decode, ignore_checksums=ignore_checksums, log_filename=log_filename)
+        log = Log(decode=decode, ignore_checksum=ignore_checksum, log_filename=log_filename)
         try:
             for msg in self:
                 if msg is not None:

@@ -14,7 +14,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-decode', '-N', action='store_true',
             help='disable J1587 message decoding')
-    parser.add_argument('--ignore-checksums', '-i', action='store_true',
+    parser.add_argument('--ignore-checksum', '-i', action='store_true',
             help='ignore checksums when parsing J1708 messages')
     parser.add_argument('--import-from-raw', '-I',
             help='read J1708 messages from an raw serial log')
@@ -25,15 +25,15 @@ def main():
     args = parser.parse_args()
 
     if args.reparse_log:
-        log.reparse(args.reparse_log, not args.no_decode, args.ignore_checksums, args.output_log)
+        log.reparse(args.reparse_log, not args.no_decode, args.ignore_checksum, args.output_log)
     elif args.import_from_raw:
-        rs485util.parse_file(args.import_from_raw, not args.no_decode, args.ignore_checksums, args.output_log)
+        rs485util.parse_file(args.import_from_raw, not args.no_decode, args.ignore_checksum, args.output_log)
     else:
-        port = find_device()
+        port = iface.find_device()
         assert port
         dev = iface.Iface(port)
         try:
-            dev.run(not args.no_decode, args.ignore_checksums, args.output_log)
+            dev.run(not args.no_decode, args.ignore_checksum, args.output_log)
         except KeyboardInterrupt:
             # Add a return char to help make the next command prompt look nice
             print('')

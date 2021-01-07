@@ -54,11 +54,11 @@ class ReplayMsgList:
 
 
 class Log:
-    def __init__(self, decode=True, explicit_flags=False, ignore_checksums=False, log_filename=None, stdout=True):
+    def __init__(self, decode=True, explicit_flags=False, ignore_checksum=False, log_filename=None, stdout=True):
         # Save the format/decode settings
         self._decode = decode
         self._explicit_flags = explicit_flags
-        self._ignore_checksums = ignore_checksums
+        self._ignore_checksum = ignore_checksum
 
         # Open the output files
         self._filename = log_filename
@@ -95,7 +95,7 @@ class Log:
         else:
             if isinstance(msg, bytes):
                 # decode this as a J1708 message
-                j1708_msg = J1708(msg, decode=self._decode, ignore_checksums=self._ignore_checksums)
+                j1708_msg = J1708(msg, decode=self._decode, ignore_checksum=self._ignore_checksum)
             else:
                 # Assume it already is a J1708 message
                 j1708_msg = msg
@@ -152,8 +152,8 @@ def read_msgs(filename, realtime=False):
     return ReplayMsgList(msgs, realtime=realtime)
 
 
-def reparse(filename, decode=True, ignore_checksums=False, log_filename=None):
-    log = Log(decode=decode, ignore_checksums=ignore_checksums, log_filename=log_filename)
+def reparse(filename, decode=True, ignore_checksum=False, log_filename=None):
+    log = Log(decode=decode, ignore_checksum=ignore_checksum, log_filename=log_filename)
     for msg in read_msgs(filename):
         log.logmsg(msg)
 
