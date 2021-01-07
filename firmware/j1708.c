@@ -67,8 +67,8 @@ static void j1708_eom_timer_handler(void) {
      * received copy of it, ensure that the message lengths match. */
     if (tx_msg.len > 0) {
         /* Confirm that the transmitted and received messages match */
-        if ((rx_msg.len == tx_msg.len) 
-            && memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
+        if ((rx_msg.len == tx_msg.len) &&
+            memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
             /* signal that message transmission is complete. */
             event_signal(&msg_sent_event, rx_msg.len);
 
