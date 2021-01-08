@@ -31,9 +31,3 @@ void event_signal(event_t *event, int32_t value) {
     event->set = 1;
 }
 
-void event_putvalue(event_t *event, int32_t value) {
-    /* Atomically set the value , but don't signal the event. */
-    CM_ATOMIC_CONTEXT();
-    event->value = value;
-}
-

@@ -47,18 +47,15 @@ static void usart_setup(void) {
 static void handle_tx_collision(void) {
     uint32_t pri;
 
-    /* Indicate that a transmit error has occurred, but don't set the "msg_sent" 
-     * event yet, that will happen after the collision timer expires. */
-    event_putvalue(&msg_sent_event, -1);
+    /* Clear the transmit buffer length now indicating that there is no active 
+     * tx at this time. */
+    tx_msg.len = 0;
 
     /* Configure the collision wait timer delay based on the priority of the 
-     * message. */
+     * message.  When the collision timer is complete then the msg_sent_event 
+     * will be set to allow Tx to happen again. */
     pri = j1708_msg_priority((msg_t*) &tx_msg);
     timer_set_wait(COL_TIMER, J1708_COLLISION_WAIT(pri));
-
-    /* Clear the tx message length to allow receiving messages before the 
-     * collision retry timer expires. */
-    tx_msg.len = 0;
 }
 
 static void j1708_eom_timer_handler(void) {
@@ -68,33 +65,38 @@ static void j1708_eom_timer_handler(void) {
         /* Confirm that the transmitted and received messages match */
         if ((rx_msg.len == tx_msg.len) 
             && memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
-            /* signal that message transmission is complete. */
-            event_signal(&msg_sent_event, rx_msg.len);
 
             /* Clear the transmit buffer length indicating that tx is 
              * complete. */
             tx_msg.len = 0;
+
+            /* signal that message tx is successful */
+            event_signal(&msg_sent_event, rx_msg.len);
         } else {
-            /* If the lengths do not line up, indicate that a transmission error 
-             * occurred. */
+            /* If the lengths or contents do not line up, indicate that 
+             * a transmission error occurred. */
             handle_tx_collision();
+
+            /* It's possible that the message isn't corrupted, let it get sent 
+             * to the host for further evaluation. Alternatively rx_msg length 
+             * could be set to 0 here to prevent the message from going to the 
+             * host. */
         }
     }
 
-    msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
-    led_toggle();
+    /* Ensure that the message length is >= 2 before sending up to the host. */
+    if (rx_msg.len >= 2) {
+        msg_push(&j1708_rx_queue, (msg_t*) &rx_msg);
+        led_toggle();
+    }
 
     /* Reset the receive in-progress buffer */
     rx_msg.len = 0;
 }
 
 static void j1708_col_timer_handler(void) {
-    /* Collision, send -1 indicating tx failure. */
+    /* Collision, set -1 indicating tx failure. */
     event_signal(&msg_sent_event, -1);
-
-    /* Clear the transmit buffer length indicating that tx is 
-     * complete. */
-    tx_msg.len = 0;
 }
 
 void j1708_setup(void) {
@@ -130,7 +132,7 @@ static void j1708_wait_rx_complete(void) {
 void j1708_write_msg(msg_t *msg) {
     uint16_t data;
     uint32_t len;
-    int32_t event_status = 0;
+    int32_t tx_status;
 
     len = msg->len;
 
@@ -138,7 +140,7 @@ void j1708_write_msg(msg_t *msg) {
      * bytes received match the sent bytes. */
     memcpy(tx_msg.buf, msg->buf, len);
 
-    while (event_status <= 0) {
+    do {
         /* If a message is being received, wait until it is complete. */
         j1708_wait_rx_complete();
 
@@ -149,17 +151,11 @@ void j1708_write_msg(msg_t *msg) {
             data = tx_msg.buf[i];
             USART_DR(J1708_UART) = data;
             usart_wait_send_ready(J1708_UART);
-
-            /* If the event is set, abort the send (in theory this should not 
-             * happen until the event has finished transmitting. */
-            if (event_nowait(&msg_sent_event) != 0) {
-                break;
-            }
         }
 
         /* Block here until an event status is set */
-        event_status = event_wait(&msg_sent_event);
-    }
+        tx_status = event_wait(&msg_sent_event);
+    } while (tx_status <= 0);
 }
 
 #if 1
@@ -199,6 +195,7 @@ void usart1_isr(void) {
         rx_msg.buf[rx_msg.len++] = data;
         timer_restart(EOM_TIMER);
 
+#if 0
         /* Compare the receive buffer against the tx buffer, if the bytes or 
          * message lengths do not line up then signal a collision.
          *
@@ -209,6 +206,7 @@ void usart1_isr(void) {
         if ((tx_msg.len > 0) && (rx_msg.len == 1) && (rx_msg.buf[0] != tx_msg.buf[0])) {
             handle_tx_collision();
         }
+#endif
     }
 }
 
