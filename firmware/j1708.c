@@ -1,4 +1,3 @@
-
 #include <string.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
@@ -67,8 +66,8 @@ static void j1708_eom_timer_handler(void) {
      * received copy of it, ensure that the message lengths match. */
     if (tx_msg.len > 0) {
         /* Confirm that the transmitted and received messages match */
-        if ((rx_msg.len == tx_msg.len) &&
-            memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
+        if ((rx_msg.len == tx_msg.len) 
+            && memcmp(rx_msg.buf, tx_msg.buf, rx_msg.len) == 0) {
             /* signal that message transmission is complete. */
             event_signal(&msg_sent_event, rx_msg.len);
 
@@ -102,7 +101,6 @@ void j1708_setup(void) {
     msg_queue_init(&j1708_rx_queue);
     msg_init(&rx_msg);
     msg_init(&tx_msg);
-    event_init(&msg_sent_event);
 
     timer_set_handler(EOM_TIMER, j1708_eom_timer_handler);
     timer_set_handler(COL_TIMER, j1708_col_timer_handler);
@@ -146,7 +144,7 @@ void j1708_write_msg(msg_t *msg) {
 
         /* Set the transmit message length and try to send it. */
         tx_msg.len = len;
-        event_clear(&msg_sent_event);
+        event_init(&msg_sent_event);
         for (uint32_t i = 0; i < len; i++) {
             data = tx_msg.buf[i];
             USART_DR(J1708_UART) = data;
@@ -154,7 +152,7 @@ void j1708_write_msg(msg_t *msg) {
 
             /* If the event is set, abort the send (in theory this should not 
              * happen until the event has finished transmitting. */
-            if (event_isset(&msg_sent_event)) {
+            if (event_nowait(&msg_sent_event) != 0) {
                 break;
             }
         }
@@ -213,3 +211,4 @@ void usart1_isr(void) {
         }
     }
 }
+

@@ -1,55 +1,39 @@
-
-//#include <libopencm3/cm3/cortex.h>
+#include <libopencm3/cm3/cortex.h>
 #include "event.h"
 
 void event_init(event_t *event) {
-    event->lock = MUTEX_UNLOCKED;
-    event->set = false;
+    CM_ATOMIC_CONTEXT();
+    event->set = 0;
     event->value = 0;
-}
-
-void event_clear(event_t *event) {
-    mutex_lock(&event->lock);
-    event->set = false;
-    event->value = 0;
-    mutex_unlock(&event->lock);
 }
 
 int32_t event_wait(event_t *event) {
     int32_t value;
-    bool set;
+    uint32_t set = 0;
 
-    do {
-        mutex_lock(&event->lock);
+    while (set != 0) {
+        CM_ATOMIC_CONTEXT();
         set = event->set;
-        value = event->value;
-        mutex_unlock(&event->lock);
-    } while (!set);
+    }
+    value = event->value;
 
     return value;
 }
 
-bool event_isset(event_t *event) {
-    bool set;
-
-    mutex_lock(&event->lock);
-    set = event->set;
-    mutex_unlock(&event->lock);
-
-    return set;
+int32_t event_nowait(event_t *event) {
+    CM_ATOMIC_CONTEXT();
+    return event->value;
 }
 
 void event_signal(event_t *event, int32_t value) {
-    mutex_lock(&event->lock);
-    event->set = true;
+    CM_ATOMIC_CONTEXT();
     event->value = value;
-    mutex_unlock(&event->lock);
+    event->set = 1;
 }
 
 void event_putvalue(event_t *event, int32_t value) {
-    /* Change the value , but don't signal the event. */
-    mutex_lock(&event->lock);
+    /* Atomically set the value , but don't signal the event. */
+    CM_ATOMIC_CONTEXT();
     event->value = value;
-    mutex_unlock(&event->lock);
 }
 
