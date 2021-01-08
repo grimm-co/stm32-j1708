@@ -149,7 +149,12 @@ class J1708:
         else:
             repr_msg = self.msg
 
-        return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(list(self.pids))})'
+        # If MID is not set, this message has not been decoded, print a more 
+        # limited repr
+        if self._mid is None:
+            return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)})'
+        else:
+            return f'{self.__class__.__name__}(msg={repr(repr_msg)}, timestamp={repr(self.time)}, mid={self.mid}, pids={repr(list(self.pids))})'
 
     def __iter__(self):
         return self._pids.__iter__()
@@ -276,7 +281,7 @@ class J1708:
         if self.checksum is not None:
             return f'{msg.upper()} ({self.checksum:X})'
         else:
-            return f'{msg.upper()} ({self.checksum})'
+            return msg.upper()
 
     def export(self):
         self.decode()
