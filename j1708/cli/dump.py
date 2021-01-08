@@ -12,6 +12,7 @@ def main():
     #   3. Add timestamp support to j1708 firmware so logs have relative 
     #      timestamps in them
     parser = argparse.ArgumentParser()
+    parser.add_argument('--port', '-p', help='manually specify J1708 device serial port')
     parser.add_argument('--no-decode', '-N', action='store_true',
             help='disable J1587 message decoding')
     parser.add_argument('--ignore-checksum', '-i', action='store_true',
@@ -29,7 +30,11 @@ def main():
     elif args.import_from_raw:
         rs485util.parse_file(args.import_from_raw, not args.no_decode, args.ignore_checksum, args.output_log)
     else:
-        port = iface.find_device()
+        if args.port:
+            port = args.port
+        else:
+            port = iface.find_device()
+
         assert port
         dev = iface.Iface(port)
         try:
