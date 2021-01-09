@@ -43,42 +43,36 @@ bool isValidHostMsg(uint8_t *buf, uint32_t len) {
         (buf[0] == HOST_MSG_START) && (buf[len-1] == HOST_MSG_END);
 }
 
-void printMsgToHost(J1708Msg* src) {
+void printMsgToHost(J1708Msg src) {
     char out[HOST_MSG_BUF_SIZE];
     int outIdx;
 
     out[0] = HOST_MSG_START;
     outIdx = 1;
 
-    for (uint32_t i = 0; i < src->len; i++) {
-        out[outIdx]     = nibble_to_char((src->buf[i] & 0xF0) >> 4);
-        out[outIdx + 1] = nibble_to_char(src->buf[i] & 0x0F);
+    for (uint32_t i = 0; i < src.len; i++) {
+        out[outIdx]     = nibble_to_char((src.buf[i] & 0xF0) >> 4);
+        out[outIdx + 1] = nibble_to_char(src.buf[i] & 0x0F);
         outIdx += 2;
     }
 
     out[outIdx++] = HOST_MSG_END;
     out[outIdx] = '\0';
     SerialUSB.print(out);
-
-    /* Now that the message has been sent deallocate it */
-    delete src;
 }
 
-J1708Msg* newFromHostMsg(uint8_t *buf, uint32_t len) {
-    J1708Msg* msg = NULL;
-
+J1708Msg newFromHostMsg(uint8_t *buf, uint32_t len) {
+    J1708Msg msg;
     if (isValidHostMsg(buf, len)) {
         uint32_t msgIdx = 0;
 
-        msg = new J1708Msg();
-
         /* Skip the SOM and EOM delimiters */
         for (uint32_t i = 1; i < (len - 1); i += 2) {
-            msg->buf[msgIdx]  = char_to_nibble(buf[i]) << 4;
-            msg->buf[msgIdx] |= char_to_nibble(buf[i + 1]);
+            msg.buf[msgIdx]  = char_to_nibble(buf[i]) << 4;
+            msg.buf[msgIdx] |= char_to_nibble(buf[i + 1]);
             msgIdx++;
         }
-        msg->len = msgIdx;
+        msg.len = msgIdx;
     }
 
     return msg;
@@ -97,7 +91,6 @@ uint8_t incoming[HOST_MSG_BUF_SIZE];
 uint32_t received = 0;
 
 void loop() {
-    J1708Msg *tmp;
     uint8_t readChar;
 
     /* See if there is any incoming USB data */
@@ -110,8 +103,8 @@ void loop() {
             incoming[received++] = readChar;
 
             /* See if this is a complete valid message yet or not */
-            tmp = newFromHostMsg(incoming, received);
-            if (tmp != NULL) {
+            if (isValidHostMsg(incoming, received)) {
+                J1708Msg tmp = newFromHostMsg(incoming, received);
                 J1708Device.write(tmp);
 
                 /* Reset the incoming msg buffer */
@@ -121,8 +114,8 @@ void loop() {
     }
 
     /* Now see if there are any messages that have been received */
-    tmp = J1708Device.read();
-    if (tmp != NULL) {
+    if (J1708Device.available()) {
+        J1708Msg tmp = J1708Device.read();
         printMsgToHost(tmp);
     }
 }

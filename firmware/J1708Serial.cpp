@@ -7,8 +7,8 @@ bool                 J1708Serial::_txAvail = true;
 HardwareSerial      *J1708Serial::_hwDev = NULL;
 serial_t            *J1708Serial::_serial = NULL;
 
-Queue<J1708Msg*>     J1708Serial::_rxMsgs(J1708_MSG_QUEUE_DEPTH);
-Queue<J1708Msg*>     J1708Serial::_txMsgs(J1708_MSG_QUEUE_DEPTH);
+Queue<J1708Msg>     J1708Serial::_rxMsgs(J1708_MSG_QUEUE_DEPTH);
+Queue<J1708Msg>     J1708Serial::_txMsgs(J1708_MSG_QUEUE_DEPTH);
 
 OneShotHardwareTimer J1708Serial::_EOMTimer(J1708_EOM_TIMER);
 OneShotHardwareTimer J1708Serial::_COLTimer(J1708_COL_TIMER);
@@ -79,8 +79,8 @@ void J1708Serial::_handleTxCollision(void) {
     _EOMTimer.restart();
 }
 
-bool J1708Serial::_sendMsg(J1708Msg* msg) {
-    J1708Msg *incomingMsg = NULL;
+bool J1708Serial::_sendMsg(J1708Msg msg) {
+    J1708Msg incomingMsg;
 
     /* Check if we can transmit or not, if not we will return false indicating 
      * that the message was not sent. */
@@ -89,18 +89,17 @@ bool J1708Serial::_sendMsg(J1708Msg* msg) {
     }
 
     /* Now send the message */
-    for (int i = 0; i < msg->len; i++) {
-        _hwDev->write(msg->buf[i]);
+    for (int i = 0; i < msg.len; i++) {
+        _hwDev->write(msg.buf[i]);
     }
 
     /* Now wait until the next message is received */
-    while (incomingMsg == NULL) {
-        incomingMsg = _rxMsgs.peek();
-    }
+    while (_rxMsgs.isEmpty());
+    incomingMsg = _rxMsgs.dequeue();
 
     /* Check if the new message matches the message we just sent.  If so, 
      * the message was successfully transmitted, if not ...*/
-    if (0 == memcmp(msg, incomingMsg, sizeof(J1708Msg))) {
+    if (0 == memcmp(&msg, &incomingMsg, sizeof(J1708Msg))) {
         return true;
     } else {
         _handleTxCollision();
@@ -108,35 +107,39 @@ bool J1708Serial::_sendMsg(J1708Msg* msg) {
     }
 }
 
-J1708Msg* J1708Serial::_getMsg(void) {
+J1708Msg J1708Serial::_getMsg(void) {
     /* Return any received message that may be in the queue, If nothing is 
      * present this will just return NULL */
     return _rxMsgs.dequeue();
 }
 
-J1708Msg* J1708Serial::read(void) {
+bool J1708Serial::available(void) {
+    return _rxMsgs.isEmpty();
+}
+
+J1708Msg J1708Serial::read(void) {
     /* First see if there are any messages waiting to be sent */
     if (!_txMsgs.isEmpty()) {
-        J1708Msg *tmp = _txMsgs.peek();
+        J1708Msg tmp = _txMsgs.peek();
         if (_sendMsg(tmp)) {
             /* If the message was sent successfully remove the transmitted 
              * message from the queue */
-            _txMsgs.removeAndDelete();
+            _txMsgs.remove();
         }
     }
 
     return _getMsg();
 }
 
-void J1708Serial::write(J1708Msg* msg) {
+void J1708Serial::write(J1708Msg msg) {
     /* Just enqueue the new message to be sent
      * TODO: may need to make this smarter eventually and squash duplicates
      *       based on source MID or something */
 
     if (!_txMsgs.enqueue(&msg)) {
-        /* If the message failed to enqueue the queue is full, discard the 
-         * oldest item */
-        _txMsgs.removeAndDelete();
+        /* If the message failed to enqueue, the queue is full. Discard the 
+         * oldest item. */
+        _txMsgs.remove();
         _txMsgs.enqueue(&msg);
     }
 }
@@ -167,7 +170,6 @@ void J1708Serial::_eomCallback(void) {
      * expected. */
     uint8_t tempBuf[SERIAL_RX_BUFFER_SIZE];
     int32_t avail = _hwDev->available();
-    J1708Msg *msg = NULL;
 
     /* Regardless of whether this message will be considered "valid" or not, 
      * read all the available characters into our temp msg buffer. */
@@ -178,9 +180,9 @@ void J1708Serial::_eomCallback(void) {
     /* If the message is >= the MIN size and <= the MAX size, it is valid so add 
      * it to the queue. */
     if ((avail >= J1708_MSG_MIN_SIZE) && (avail <= J1708_MSG_MAX_SIZE)) {
-        msg = new J1708Msg();
-        memcpy(msg->buf, tempBuf, avail);
-        msg->len = avail;
+        J1708Msg msg;
+        memcpy(msg.buf, tempBuf, avail);
+        msg.len = avail;
         _rxMsgs.enqueue(&msg);
 
         /* A message was successfully received, toggle the led */

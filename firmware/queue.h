@@ -91,21 +91,6 @@ void Queue<T>::remove(void) {
             head = 0;
         }
     }
-} 
-
-/* Removes next item in queue without returning it and deletes it */
-template <class T>
-void Queue<T>::removeAndDelete(void) {
-    if(!isEmpty())
-    {
-        delete items[head];
-        head++;
-
-        if(head >= num_items)
-        {
-            head = 0;
-        }
-    }
-} 
+}
 
 #endif

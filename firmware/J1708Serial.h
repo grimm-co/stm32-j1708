@@ -70,8 +70,9 @@ public:
     static void _eomCallback(void);
     static void _colCallback(void);
 
-    J1708Msg* read(void);
-    void write(J1708Msg* msg);
+    bool available(void);
+    J1708Msg read(void);
+    void write(J1708Msg msg);
 
     /* Modified function to add J1708 timer stuff */
     static void _rx_complete_irq(serial_t *obj);
@@ -94,8 +95,8 @@ private:
     void configure(void);
 
     /* Internal send/receive utilities */
-    bool _sendMsg(J1708Msg* msg);
-    J1708Msg* _getMsg(void);
+    bool _sendMsg(J1708Msg msg);
+    J1708Msg _getMsg(void);
     bool _isTxAllowed(void);
     void _handleTxCollision(void);
 
@@ -104,8 +105,8 @@ private:
     static HardwareSerial *_hwDev;
     static serial_t *_serial;
 
-    static Queue<J1708Msg*> _rxMsgs;
-    static Queue<J1708Msg*> _txMsgs;
+    static Queue<J1708Msg> _rxMsgs;
+    static Queue<J1708Msg> _txMsgs;
 
     static OneShotHardwareTimer _EOMTimer;
     static OneShotHardwareTimer _COLTimer;
