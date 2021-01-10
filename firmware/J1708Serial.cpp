@@ -54,21 +54,9 @@ void J1708Serial::configure(void) {
 }
 
 bool J1708Serial::_isTxAllowed(void) {
-    bool allowed;
-
-    /* First check if the Tx collision timer is running */
-    noInterrupts();
-    allowed = _txAvail;
-    interrupts();
-
-    /* If the collision timer is not running, check if there are any bytes in 
-     * the receive buffer, if there are a message is currently being received so 
-     * wait until that is complete */
-    if (allowed) {
-        return _hwDev->available() == 0;
-    }
-
-    return allowed;
+    /* Transmit can happen if the Tx Collision wait timer is not running and 
+     * there is not a message currently being received. */
+    return _txAvail && _hwDev->available() == 0;
 }
 
 void J1708Serial::_handleTxCollision(void) {
