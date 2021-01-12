@@ -1,4 +1,5 @@
 #include "J1708Serial.h"
+#include "OneShotHardwareTimer.h"
 #include "led.h"
 
 /* Start/end message delimiters */
@@ -78,20 +79,37 @@ J1708Msg newFromHostMsg(uint8_t *buf, uint32_t len) {
     return msg;
 }
 
-HardwareSerial Serial1(PA10, PA9);
-J1708Serial J1708Device(&Serial1, PA10, PA9);
+/* Normally we'd use the variable Serial1 for this, but it is already defined as
+ *      extern HardwareSerial Seriall1;
+ *  in HardwareSerial.h, even though this project is compiled with the standard 
+ *  Serial1 object not being created.  So we have to call it something different */
+J1708Serial bus(PA10, PA9);
+//OneShotHardwareTimer test(TIM4);
 
-void setup() {
+void cb(void) {
+    led_off();
+}
+
+void setup(void) {
     led_setup();
 
-    J1708Device.begin();
+    bus.begin();
+    //test.configure(8000, 4000, cb);
 }
 
 uint8_t incoming[HOST_MSG_BUF_SIZE];
 uint32_t received = 0;
+uint32_t last = 0;
 
-void loop() {
+void loop(void) {
+#if 1
     uint8_t readChar;
+    uint32_t now = millis();
+
+    if ((now - last) > 1000) {
+        led_toggle();
+        last = now;
+    }
 
     /* See if there is any incoming USB data */
     readChar = SerialUSB.read();
@@ -105,7 +123,7 @@ void loop() {
             /* See if this is a complete valid message yet or not */
             if (isValidHostMsg(incoming, received)) {
                 J1708Msg tmp = newFromHostMsg(incoming, received);
-                J1708Device.write(tmp);
+                bus.msgSend(tmp);
 
                 /* Reset the incoming msg buffer */
                 received = 0;
@@ -114,8 +132,19 @@ void loop() {
     }
 
     /* Now see if there are any messages that have been received */
-    if (J1708Device.available()) {
-        J1708Msg tmp = J1708Device.read();
-        printMsgToHost(tmp);
+    if (bus.msgAvailable()) {
+        J1708Msg tmp;
+        if (bus.msgRecv(&tmp)) {
+            printMsgToHost(tmp);
+        }
     }
+#else
+    uint32_t now = millis();
+
+    if ((now - last) > 1000) {
+        led_on();
+        last = now;
+        test.restart();
+    }
+#endif
 }

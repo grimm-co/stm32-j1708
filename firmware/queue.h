@@ -12,15 +12,14 @@ class Queue {
       uint32_t num_items; 
 
    public:
-      ~Queue(void) { delete items; }
-      bool isEmpty(void) { return head == tail; }
+      ~Queue() { delete items; }
+      bool isEmpty() { return head == tail; }
 
       Queue(uint32_t num);
       bool enqueue(T const*);
-      T dequeue(void);
-      T peek(void);
-      void remove(void);
-      void removeAndDelete(void);
+      T dequeue();
+      T peek();
+      void remove();
 }; 
 
 /* Constructor. Allocate buffer */
@@ -49,7 +48,7 @@ bool Queue<T>::enqueue(T const* item) {
 
 /* Removes and returns next item in queue */
 template <class T>
-T Queue<T>::dequeue(void) {
+T Queue<T>::dequeue() {
     T item;
     if(isEmpty())
     {
@@ -68,7 +67,7 @@ T Queue<T>::dequeue(void) {
 
 /* Returns next item in queue without removing it */
 template <class T>
-T Queue<T>::peek(void) {
+T Queue<T>::peek() {
     T item;
     if(isEmpty())
     {
@@ -81,7 +80,7 @@ T Queue<T>::peek(void) {
 
 /* Removes next item in queue without returning it */
 template <class T>
-void Queue<T>::remove(void) {
+void Queue<T>::remove() {
     if(!isEmpty())
     {
         head++;

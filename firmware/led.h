@@ -1,7 +1,7 @@
 #ifndef __LED_H__
 #define __LED_H__
 
-#include <wiring.h>
+#include <Arduino.h>
 
 #ifndef LED_BUILTIN
 /* Should be defined in variant.h */

@@ -1,14 +1,11 @@
 #include "J1708Serial.h"
-#include "led.h"
 
 /* Initialize the static class member objects now */
 bool                 J1708Serial::_txAvail = true;
+serial_t            *J1708Serial::_serialPtr = NULL;
 
-HardwareSerial      *J1708Serial::_hwDev = NULL;
-serial_t            *J1708Serial::_serial = NULL;
-
-Queue<J1708Msg>     J1708Serial::_rxMsgs(J1708_MSG_QUEUE_DEPTH);
-Queue<J1708Msg>     J1708Serial::_txMsgs(J1708_MSG_QUEUE_DEPTH);
+Queue<J1708Msg>      J1708Serial::_rxMsgs(J1708_MSG_QUEUE_DEPTH);
+Queue<J1708Msg>      J1708Serial::_txMsgs(J1708_MSG_QUEUE_DEPTH);
 
 OneShotHardwareTimer J1708Serial::_EOMTimer(J1708_EOM_TIMER);
 OneShotHardwareTimer J1708Serial::_COLTimer(J1708_COL_TIMER);
@@ -32,94 +29,105 @@ const uint16_t J1708_MSG_TIMEOUT = 10 + 1;
 #define J1708_COLLISION_WAIT(msg_priority) (J1708_MSG_TIMEOUT + ((msg_priority) * 2))
 const uint16_t J1708_DEFAULT_COLLISION_WAIT = J1708_COLLISION_WAIT(8);
 
+/* Some internal utility functions. */
+
+static int utility_available(serial_t *obj) {
+    return ((unsigned int)(SERIAL_RX_BUFFER_SIZE + obj->rx_head - obj->rx_tail)) % SERIAL_RX_BUFFER_SIZE;
+}
+
+static int utility_read(serial_t *obj) {
+    /* if the head isn't ahead of the tail, we don't have any characters */
+    if (obj->rx_head == obj->rx_tail) {
+        return -1;
+    } else {
+        unsigned char c = obj->rx_buff[obj->rx_tail];
+        obj->rx_tail = (rx_buffer_index_t)(obj->rx_tail + 1) % SERIAL_RX_BUFFER_SIZE;
+        return c;
+    }
+}
+
+void J1708Serial::begin(void) {
+    /* Configure the J1708 message timers */
+    configure();
+
+    /* Now duplicate the important parts of HardwareSerial::begin() but 
+     * using the J1708 specified values, and using the rx callback function 
+     * for this class. */
+    uart_init(&_serial, J1708_BAUD, J1708_NUMBITS, J1708_PARITY, J1708_STOPBITS);
+    uart_attach_rx_callback(&_serial, J1708Serial::_rx_complete_irq);
+}
+
 void J1708Serial::configure(void) {
-    /* APB1 clock is PCLK1 in the arduino HAL */
-    uint32_t apb1_freq = HAL_RCC_GetPCLK1Freq();
-    uint32_t timer_prescaler = (apb1_freq * 2) / TIMER_FREQ;
-
     /* Initialize the timers */
-    _EOMTimer.setOneShotMode(true);
-    _EOMTimer.setPrescaleFactor(timer_prescaler);
-    _EOMTimer.setPreloadEnable(true);
-    _EOMTimer.setMode(TIM_CHANNEL_1, TIMER_OUTPUT_COMPARE, NC);
-    _EOMTimer.setOverflow(J1708_MSG_TIMEOUT * TIMER_TICKS_PER_BIT);
-    _EOMTimer.attachInterrupt(_eomCallback);
+    _EOMTimer.configure(TIMER_FREQ,
+                        J1708_MSG_TIMEOUT * TIMER_TICKS_PER_BIT,
+                        _eomCallback);
 
-    _COLTimer.setOneShotMode(true);
-    _COLTimer.setPrescaleFactor(timer_prescaler);
-    _COLTimer.setPreloadEnable(true);
-    _COLTimer.setMode(TIM_CHANNEL_1, TIMER_OUTPUT_COMPARE, NC);
-    _COLTimer.setOverflow(J1708_DEFAULT_COLLISION_WAIT * TIMER_TICKS_PER_BIT);
-    _COLTimer.attachInterrupt(_colCallback);
+    _COLTimer.configure(TIMER_FREQ,
+                        J1708_DEFAULT_COLLISION_WAIT * TIMER_TICKS_PER_BIT,
+                        _colCallback);
 }
 
 bool J1708Serial::_isTxAllowed(void) {
     /* Transmit can happen if the Tx Collision wait timer is not running and 
      * there is not a message currently being received. */
-    return _txAvail && _hwDev->available() == 0;
+    return _txAvail && available() == 0;
 }
 
 void J1708Serial::_handleTxCollision(void) {
-    noInterrupts();
     _txAvail = false;
-    interrupts();
-
-    _EOMTimer.restart();
+    _COLTimer.restart();
 }
 
-bool J1708Serial::_sendMsg(J1708Msg msg) {
-    J1708Msg incomingMsg;
+bool J1708Serial::msgAvailable(void) {
+    return !_rxMsgs.isEmpty();
+}
 
-    /* Check if we can transmit or not, if not we will return false indicating 
-     * that the message was not sent. */
-    if (!_isTxAllowed()) {
-        return false;
-    }
-
-    /* Now send the message */
-    for (int i = 0; i < msg.len; i++) {
-        _hwDev->write(msg.buf[i]);
-    }
-
-    /* Now wait until the next message is received */
-    while (_rxMsgs.isEmpty());
-    incomingMsg = _rxMsgs.dequeue();
-
-    /* Check if the new message matches the message we just sent.  If so, 
-     * the message was successfully transmitted, if not ...*/
-    if (0 == memcmp(&msg, &incomingMsg, sizeof(J1708Msg))) {
+bool J1708Serial::msgRecv(J1708Msg *msg) {
+    if (msgAvailable()) {
+        /* First see if there are any messages that have already been received, 
+         * if so we should receive them first. */
+        *msg = _rxMsgs.dequeue();
         return true;
-    } else {
-        _handleTxCollision();
-        return false;
-    }
+    } else if (!_txMsgs.isEmpty()) {
+        /* If no messages have been received see if there are any messages 
+         * waiting to be sent */
+        J1708Msg txMsg = _txMsgs.peek();
+
+        /* Check if we can transmit or not, if not we will return false 
+         * indicating that the message was not sent. */
+        if (_isTxAllowed()) {
+            /* Now send the message */
+            for (int i = 0; i < txMsg.len; i++) {
+                write(txMsg.buf[i]);
+            }
+
+            /* Now wait until the next message is received */
+            while (!msgAvailable());
+            *msg = _rxMsgs.dequeue();
+
+            /* Check if the new message matches the message we just sent. */
+            if (0 == memcmp(&txMsg, msg, sizeof(J1708Msg))) {
+                /* the message was successfully transmitted, remove it from the 
+                 * Tx queue and return the readback message as one that was just 
+                 * received. */
+                _txMsgs.remove();
+                return true;
+            } else {
+                _handleTxCollision();
+
+                /* If transmit failed, the received message is not valid so 
+                 * discard it */
+                return false;
+            }
+        } /* if (_isTxAllowed()) */
+    } /* else if (!_txMsgs.isEmpty()) */
+
+    /* No message has been received. */
+    return false;
 }
 
-J1708Msg J1708Serial::_getMsg(void) {
-    /* Return any received message that may be in the queue, If nothing is 
-     * present this will just return NULL */
-    return _rxMsgs.dequeue();
-}
-
-bool J1708Serial::available(void) {
-    return _rxMsgs.isEmpty();
-}
-
-J1708Msg J1708Serial::read(void) {
-    /* First see if there are any messages waiting to be sent */
-    if (!_txMsgs.isEmpty()) {
-        J1708Msg tmp = _txMsgs.peek();
-        if (_sendMsg(tmp)) {
-            /* If the message was sent successfully remove the transmitted 
-             * message from the queue */
-            _txMsgs.remove();
-        }
-    }
-
-    return _getMsg();
-}
-
-void J1708Serial::write(J1708Msg msg) {
+void J1708Serial::msgSend(J1708Msg msg) {
     /* Just enqueue the new message to be sent
      * TODO: may need to make this smarter eventually and squash duplicates
      *       based on source MID or something */
@@ -150,6 +158,7 @@ void J1708Serial::_rx_complete_irq(serial_t *obj) {
          * and when the timer expires take the received characters and save them 
          * as a message. */
         _EOMTimer.restart();
+        led_toggle();
     }
 }
 
@@ -157,12 +166,12 @@ void J1708Serial::_eomCallback(void) {
     /* Use a temp buffer for the message in case there are more characters than 
      * expected. */
     uint8_t tempBuf[SERIAL_RX_BUFFER_SIZE];
-    int32_t avail = _hwDev->available();
+    int32_t avail = utility_available(J1708Serial::_serialPtr);
 
     /* Regardless of whether this message will be considered "valid" or not, 
      * read all the available characters into our temp msg buffer. */
     for (int i = 0; i < SERIAL_RX_BUFFER_SIZE; i++) {
-        tempBuf[i] = _hwDev->read();
+        tempBuf[i] = utility_read(J1708Serial::_serialPtr);
     }
 
     /* If the message is >= the MIN size and <= the MAX size, it is valid so add 
@@ -181,4 +190,44 @@ void J1708Serial::_eomCallback(void) {
 void J1708Serial::_colCallback(void) {
     /* Transmitting can resume */
     _txAvail = true;
+}
+
+/* Virtual functions that are just a pass through to the parent class */
+int J1708Serial::available(void) {
+    return utility_available(&_serial);
+}
+
+int J1708Serial::peek(void) {
+    if (_serial.rx_head == _serial.rx_tail) {
+        return -1;
+    } else {
+        return _serial.rx_buff[_serial.rx_tail];
+    }
+}
+
+int J1708Serial::read(void) {
+    return utility_read(&_serial);
+}
+
+void J1708Serial::flush(void) {
+    /* Wait until the Tx buffer is cleared by the Tx interrupt handler */
+    while (_written && (_serial.tx_head != _serial.tx_tail));
+}
+
+size_t J1708Serial::write(uint8_t c) {
+    _written = true;
+
+    tx_buffer_index_t i = (_serial.tx_head + 1) % SERIAL_TX_BUFFER_SIZE;
+
+    /* Wait until the Tx buffer is not full */
+    while (i == _serial.tx_tail);
+
+    _serial.tx_buff[_serial.tx_head] = c;
+    _serial.tx_head = i;
+
+    if (!serial_tx_active(&_serial)) {
+        uart_attach_tx_callback(&_serial, _tx_complete_irq);
+    }
+
+    return 1;
 }
