@@ -158,7 +158,6 @@ void J1708Serial::_rx_complete_irq(serial_t *obj) {
          * and when the timer expires take the received characters and save them 
          * as a message. */
         _EOMTimer.restart();
-        led_toggle();
     }
 }
 

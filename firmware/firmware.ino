@@ -79,22 +79,20 @@ J1708Msg newFromHostMsg(uint8_t *buf, uint32_t len) {
     return msg;
 }
 
-/* Normally we'd use the variable Serial1 for this, but it is already defined as
+/* Normally we'd use the variable name Serial1 for this, but it is already 
+ * defined as:
+ *
  *      extern HardwareSerial Seriall1;
- *  in HardwareSerial.h, even though this project is compiled with the standard 
- *  Serial1 object not being created.  So we have to call it something different */
+ *
+ * in HardwareSerial.h, even though this project is compiled with the standard 
+ * Serial1 object not being created.  So we have to call it something different.
+ */
 J1708Serial bus(PA10, PA9);
-//OneShotHardwareTimer test(TIM4);
-
-void cb(void) {
-    led_off();
-}
 
 void setup(void) {
     led_setup();
 
     bus.begin();
-    //test.configure(8000, 4000, cb);
 }
 
 uint8_t incoming[HOST_MSG_BUF_SIZE];
@@ -102,10 +100,11 @@ uint32_t received = 0;
 uint32_t last = 0;
 
 void loop(void) {
-#if 1
     uint8_t readChar;
     uint32_t now = millis();
 
+    /* Slow blink to make it easier to see that the board is on and 
+     * functioning. */
     if ((now - last) > 1000) {
         led_toggle();
         last = now;
@@ -138,13 +137,4 @@ void loop(void) {
             printMsgToHost(tmp);
         }
     }
-#else
-    uint32_t now = millis();
-
-    if ((now - last) > 1000) {
-        led_on();
-        last = now;
-        test.restart();
-    }
-#endif
 }
