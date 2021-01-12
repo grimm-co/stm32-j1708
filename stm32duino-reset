@@ -8,7 +8,7 @@ import argparse
 import serial
 
 
-def reset_target(port, speed=115200, wait=500, **kwargs):
+def reset_target(port, speed=115200, wait=750, **kwargs):
     assert port
     print('opening {} @ {}'.format(port, speed))
 
@@ -42,7 +42,7 @@ def main():
     parser.add_argument('-p', '--port')
     parser.add_argument('-d', '--device')
     parser.add_argument('-s', '--speed', type=int, default=115200)
-    parser.add_argument('-w', '--wait', type=int, default=500)
+    parser.add_argument('-w', '--wait', type=int, default=750)
     args = parser.parse_args()
 
     if args.device:

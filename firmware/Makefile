@@ -4,6 +4,15 @@ BIN       := $(PROJECT).ino.bin
 BUILD_DIR := build
 SRC_FILES := $(PROJECT).ino sketch.json $(wildcard *.cpp) $(wildcard *.h)
 
+# Arduino tools like to agressively cache various build components but sometimes 
+# these need to be rebuilt to deal with #define changes, or just for a clean 
+# build.
+SKETCH_CACHE := $(shell arduino-cli compile --show-properties | grep -oP "build.path=\K.*")
+
+# Put the trailing '/' here so the remove command later doesn't accidentally 
+# kill the root directory if something goes wrong with this variable
+CORE_CACHE   := /tmp/arduino-core-cache/
+
 # Programming settings
 DFU_USB_ID  := 1EAF:0003
 DFU_PROFILE := 2
@@ -26,15 +35,36 @@ UPLOAD    := dfu2Method
 
 FQBN      := $(BOARD):pnum=$(PNUM),xserial=$(XSERIAL),usb=$(USB),xusb=$(XUSB),opt=$(OPT),rtlib=$(RTLIB),upload_method=$(UPLOAD)
 
-.PHONY: firmware flash clean
+# If custom commands are supplied to arduino-cli with the --build-property 
+# argument the build.extra_flags must include these settings to work properly:
+STM32_DEFAULT_CONIG := \
+	-D{build.product_line} \
+	{build.enable_usb} \
+	{build.xSerial} \
+	{build.bootloader_flags}
 
-firmware: $(BUILD_DIR)/$(BIN)
+# Customize the target USB descriptions
+STM32_USB_CONFIG := \
+	\"-DUSB_MANUFACTURER_STRING=\"GRIMM\"\" \
+	\"-DUSB_PRODUCT_STRING=\"J1708 Tool\"\"
+
+# No additional project config settings necessary at this time
+PROJECT_CONFIG :=
+
+ARDUINO_CLI_ARGS := $(STM32_DEFAULT_CONIG) $(STM32_USB_CONFIG) $(PROJECT_CONFIG)
+
+.PHONY: default verbose flash clean distclean
+
+default: $(BUILD_DIR)/$(BIN)
+
+verbose: VERBOSE := -v
+verbose: default
 
 $(BUILD_DIR):
 	mkdir -p $@
 
 $(BUILD_DIR)/$(BIN): $(SRC_FILES) | $(BUILD_DIR)
-	arduino-cli compile --output-dir=$(BUILD_DIR)
+	arduino-cli compile --build-property="build.extra_flags=$(ARDUINO_CLI_ARGS)" --output-dir=$(BUILD_DIR) $(VERBOSE)
 
 flash: $(BUILD_DIR)/$(BIN)
 ifeq ($(TARGET_MODE),APPLICATION)
@@ -46,3 +76,12 @@ clean:
 ifneq ($(wildcard $(BUILD_DIR)/*),)
 	rm $(wildcard $(BUILD_DIR)/*)
 endif
+
+distclean: clean
+ifneq ($(SKETCH_CACHE),)
+	rm -rf $(SKETCH_CACHE)
+endif
+ifneq ($(wildcard $(CORE_CACHE)*),)
+	rm -rf $(wildcard $(CORE_CACHE)*)
+endif
+

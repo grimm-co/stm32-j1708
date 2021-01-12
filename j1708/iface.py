@@ -12,7 +12,7 @@ def find_device():
     strings expected for the J1708 tool.
     """
     for p in serial.tools.list_ports.grep('0483:5740'): 
-        if 'j1708' in p.manufacturer.lower():
+        if 'j1708 tool' in p.description.lower():
             return p.device
     return None
 
