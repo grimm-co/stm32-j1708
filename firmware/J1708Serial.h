@@ -1,6 +1,10 @@
 #ifndef __J1708SERIAL_H__
 #define __J1708SERIAL_H__
 
+//#define J1708_TX_DEBUG
+//#define J1708_RX_DEBUG
+//#define J1708_NO_TX_VALIDATE
+
 #include <Arduino.h>
 #include <HardwareSerial.h>
 #include "queue.h"
@@ -47,24 +51,14 @@ const uint32_t J1708_MSG_QUEUE_DEPTH = 64;
 
 class J1708Serial : public HardwareSerial {
 public:
-    J1708Serial(int _tx, int _rx) :
-        HardwareSerial(_tx, _rx)
-    {
-        /* Save the _serial object to our static pointer variable to let the 
-         * callbacks access the serial object. */
-        _serialPtr = &_serial;
-    }
-
-    /* Timer callbacks */
-    static void _eomCallback(void);
-    static void _colCallback(void);
+    J1708Serial(int _tx, int _rx);
 
     /* parent class virtual functions we must define */
-    virtual int available(void);
-    virtual int peek(void);
-    virtual int read(void);
-    virtual void flush(void);
-    virtual size_t write(uint8_t);
+    int available(void);
+    int peek(void);
+    int read(void);
+    void flush(void);
+    size_t write(uint8_t);
 
     /* New J1708-specific message send/recv functions */
     bool msgAvailable(void);
@@ -76,21 +70,19 @@ public:
 private:
     /* Modified function to add J1708 timer stuff */
     static void _rx_complete_irq(serial_t *obj);
+    static int _tx_complete_irq(serial_t *obj);
+
+    /* Timer callbacks */
+    static void _eomCallback(void);
+    static void _colCallback(void);
 
     void configure(void);
 
     /* Internal send/receive utilities */
     bool _isTxAllowed(void);
+    bool _transmitting(void);
+    bool _checkTxSuccess(J1708Msg *msg);
     void _handleTxCollision(void);
-
-    static serial_t *_serialPtr;
-    static bool _txAvail;
-
-    static Queue<J1708Msg> _rxMsgs;
-    static Queue<J1708Msg> _txMsgs;
-
-    static OneShotHardwareTimer _EOMTimer;
-    static OneShotHardwareTimer _COLTimer;
 };
 
 #endif /* __J1708SERIAL_H__ */

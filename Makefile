@@ -1,11 +1,14 @@
 
-.PHONY: default clean flash
+.PHONY: default flash clean distclean
 
 default:
+	make -C firmware/ $@
+
+flash:
 	make -C firmware/ $@
 
 clean:
 	make -C firmware/ $@
 
-flash:
+distclean:
 	make -C firmware/ $@

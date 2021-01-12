@@ -6,8 +6,14 @@
 const char HOST_MSG_START = '$';
 const char HOST_MSG_END   = '*';
 
-const uint32_t HOST_MSG_MIN_SIZE = J1708_MSG_MIN_SIZE * 2;
-const uint32_t HOST_MSG_MAX_SIZE = J1708_MSG_MAX_SIZE * 2;
+/* The host messages are sent in printed hex so there are 2x as many characters 
+ * for host messages as the max J1708 message. Also 2 characters are needed for 
+ * the start/end of message delimiters. */
+const uint32_t HOST_MSG_MIN_SIZE = (J1708_MSG_MIN_SIZE * 2) + 2;
+
+/* Add one more character to the max msg size for a \0 terminator in case we 
+ * want to print from this buffer. */
+const uint32_t HOST_MSG_MAX_SIZE = (J1708_MSG_MAX_SIZE * 2) + 3;
 
 /* Max msg bytes * 2 (so they can be turned into ascii), + 2 for start/end of 
  * message delimiters + 1 for NULL char */
@@ -36,12 +42,14 @@ uint8_t char_to_nibble(char val) {
     return out;
 }
 
-bool isValidHostMsg(uint8_t *buf, uint32_t len) {
+bool isValidHostMsg(char *buf, uint32_t len) {
     /* The length should be a power of 2, have the correct start/end of message 
      * delimiters, and be within the min/max J1708 message sizes */
-    return (len > 0) && ((len % 2) == 0) &&
-        (len >= HOST_MSG_MIN_SIZE) && (len <= HOST_MSG_MAX_SIZE) &&
-        (buf[0] == HOST_MSG_START) && (buf[len-1] == HOST_MSG_END);
+    return (((len % 2) == 0)
+            && (len >= HOST_MSG_MIN_SIZE)
+            && (len <= HOST_MSG_MAX_SIZE)
+            && (buf[0] == HOST_MSG_START)
+            && (buf[len-1] == HOST_MSG_END));
 }
 
 void printMsgToHost(J1708Msg src) {
@@ -62,7 +70,7 @@ void printMsgToHost(J1708Msg src) {
     SerialUSB.print(out);
 }
 
-J1708Msg newFromHostMsg(uint8_t *buf, uint32_t len) {
+J1708Msg hostToJ1708Msg(char *buf, uint32_t len) {
     J1708Msg msg;
     if (isValidHostMsg(buf, len)) {
         uint32_t msgIdx = 0;
@@ -95,12 +103,13 @@ void setup(void) {
     bus.begin();
 }
 
-uint8_t incoming[HOST_MSG_BUF_SIZE];
+char incoming[HOST_MSG_BUF_SIZE];
 uint32_t received = 0;
 uint32_t last = 0;
 
 void loop(void) {
-    uint8_t readChar;
+    J1708Msg tmp;
+    char readChar;
     uint32_t now = millis();
 
     /* Slow blink to make it easier to see that the board is on and 
@@ -111,30 +120,60 @@ void loop(void) {
     }
 
     /* See if there is any incoming USB data */
-    readChar = SerialUSB.read();
-    if (readChar != -1) {
-        /* If no command chars have been received yet, don't save incoming 
-         * characters unless it is the SOM character */
-        if (((received == 0) && (readChar == HOST_MSG_START)) ||
-            (received > 0)) {
+    if (SerialUSB.available()) {
+        readChar = SerialUSB.read();
+        if (readChar == HOST_MSG_START) {
+            /* If this is the start of message character reset the received 
+             * characters back to 0. */
+            received = 0;
+            incoming[received++] = readChar;
+        } else if ((received > 0) && (received < HOST_MSG_BUF_SIZE)) {
+            /* If a message has already started append to the incoming message 
+             * buffer. */
             incoming[received++] = readChar;
 
-            /* See if this is a complete valid message yet or not */
-            if (isValidHostMsg(incoming, received)) {
-                J1708Msg tmp = newFromHostMsg(incoming, received);
-                bus.msgSend(tmp);
+            if (readChar == HOST_MSG_END) {
+#ifdef J1708_TX_DEBUG
+                incoming[received] = '\0';
+                SerialUSB.print("\nValidating: ");
+                SerialUSB.print(incoming);
+                SerialUSB.println();
+#endif
 
-                /* Reset the incoming msg buffer */
+                /* If this is the end of message character check if this is 
+                 * a valid message or not */
+                if (isValidHostMsg(incoming, received)) {
+                    tmp = hostToJ1708Msg(incoming, received);
+                    bus.msgSend(tmp);
+                }
+
+                /* Regardless of if this is a valid message or not clear the 
+                 * host message buffer. */
                 received = 0;
             }
+        } else if (received >= HOST_MSG_BUF_SIZE) {
+#ifdef J1708_TX_DEBUG
+            incoming[HOST_MSG_BUF_SIZE - 1] = '\0';
+            SerialUSB.print("\nInvalid msg: ");
+            SerialUSB.print(incoming);
+            SerialUSB.println();
+#endif
+
+            /* clear the host msg buffer */
+            received = 0;
+        } else {
+#ifdef J1708_TX_DEBUG
+            SerialUSB.print("\nInvalid SOM: ");
+            SerialUSB.print(readChar);
+            SerialUSB.print(" (0x");
+            SerialUSB.print(readChar, HEX);
+            SerialUSB.println(")");
+#endif
         }
-    }
+    } /* if (SerialUSB.available()) */
 
     /* Now see if there are any messages that have been received */
-    if (bus.msgAvailable()) {
-        J1708Msg tmp;
-        if (bus.msgRecv(&tmp)) {
-            printMsgToHost(tmp);
-        }
+    if (bus.msgRecv(&tmp)) {
+        printMsgToHost(tmp);
     }
 }

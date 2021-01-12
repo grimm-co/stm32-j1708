@@ -1,6 +1,6 @@
 {
   "cpu": {
-    "fqbn": "STM32:stm32:GenF1:pnum=BLUEPILL_F103C8,xserial=none,usb=CDC,xusb=FS,opt=o2std,rtlib=nano,upload_method=dfu2Method",
+    "fqbn": "STM32:stm32:GenF1:pnum=BLUEPILL_F103C8,xserial=none,usb=CDC,xusb=FS,opt=o3std,rtlib=nano,upload_method=dfu2Method",
     "port": ""
   }
 }

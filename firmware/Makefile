@@ -16,8 +16,8 @@ CORE_CACHE   := /tmp/arduino-core-cache/
 # Programming settings
 DFU_USB_ID  := 1EAF:0003
 DFU_PROFILE := 2
-
 APP_USB_ID  := 0483:5740
+RESET_UTIL  := ../stm32duino-reset
 
 TARGET_MODE := $(shell lsusb -d 1EAF:0003 && echo "BOOTLOADER" || echo "APPLICATION")
 
@@ -68,7 +68,7 @@ $(BUILD_DIR)/$(BIN): $(SRC_FILES) | $(BUILD_DIR)
 
 flash: $(BUILD_DIR)/$(BIN)
 ifeq ($(TARGET_MODE),APPLICATION)
-	python ../stm32duino-reset -d $(APP_USB_ID)
+	python $(RESET_UTIL) -d $(APP_USB_ID)
 endif
 	dfu-util -d $(DFU_USB_ID) -a $(DFU_PROFILE) -D $< -R
 
