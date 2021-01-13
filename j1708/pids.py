@@ -145,11 +145,10 @@ def decode(data, pid=None):
         errmsg = f'Remaining msg {val_bytes.hex()} does not match expected data length {data_len}'
         raise J1708DecodeError(errmsg)
 
-    value = None
     info = pid_info.get_pid_info(pid_val)
 
     if val_bytes == b'\xff' * data_len:
-        value = f'{val_bytes.hex().upper()}: Not Available'
+        value = None
 
     elif 'resolution' in info:
         if isinstance(info['resolution'], Fraction) and \
@@ -177,7 +176,7 @@ def decode(data, pid=None):
                 else:
                     le_val = struct.unpack('<Q', val_bytes)
             else:
-                raise J1708DecodeError(f'Bad size {size} for encoding PID {pid_val} = {value} ({info})')
+                raise J1708DecodeError(f'Bad size {size} for encoding PID {pid_val} = {val_bytes.hex()} ({info})')
 
             fractional_val = float(le_val[0] * info['resolution'])
 
@@ -192,7 +191,9 @@ def decode(data, pid=None):
         else:
             value = val_bytes
 
-    if value is None:
+    else:
+        # There is no specific encoding for this PID, so just make the value the 
+        # hex bytes
         value = val_bytes.hex().upper()
 
     # Return a dictionary representing the PID and then the rest of the message

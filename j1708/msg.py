@@ -170,6 +170,8 @@ class J1708:
             self._pids[key].value = value
         else:
             self._pids[key] = J1708PID(pid=key, value=value)
+        # Because a PID's value has been changed, clear the current msg encoding
+        self.msg = None
 
     @classmethod
     def calc_checksum(cls, msg):
