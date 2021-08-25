@@ -26,6 +26,9 @@ tested with version 1.9.0 of the Arduino_Core_STM32.  That can be installed by
 connecting the following board manager json file to the Arduino tools:
 - https://github.com/stm32duino/BoardManagerFiles/raw/master/STM32/package_stm_index.json
 
+NOTE: for the moment you must manually apply some fixes to the STM32 build
+script and platform config: https://github.com/stm32duino/Arduino_Core_STM32/pull/1442
+
 The `arduino-cli` and necessary boards can be installed and configured 
 automatically with the `install_arduino_cli.sh` script.  This script installs 
 `arduino-cli` using `go`.  If you would prefer not to mess with go, install the 
