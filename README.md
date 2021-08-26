@@ -18,7 +18,7 @@ needed:
 - Arduino_Core_STM32 support (https://github.com/stm32duino/Arduino_Core_STM32)
 - dfu-util
 - python 3.8+
-- yq (required by the install_arduino_cli.sh script)
+- yq (required by the install_arduino_cli.sh script if you use it)
 
 `arduino-cli` installation instructions can be found here: 
 https://arduino.github.io/arduino-cli/latest/installation/.  This code was 
@@ -43,8 +43,19 @@ $ make
 $ make flash
 ```
 
-## Bootloader
+By default the makefile will use the `arduino-cli` command line tool to build
+the firmware `dfu-util` to flash a "bluepill" STM32F103C8T6 board.
 
+## Supported Hardware
+### STM32F103 "bluepill"
+This tool was originally developed using a "bluepill" devboard.
+
+When used with the "bluepill" board you first need to flash an Arduino
+compatible booloader onto the board since the bluepill does not typically use
+genuine STM32 processors and do not come with a DFU-compatible bootloader
+pre-programmed.
+
+#### Bootloader
 This board was programmed with the `generic_boot20_pc13.bin` Arduino compatible 
 bootloader from the STM32duino project 
 (https://github.com/rogerclarkmelbourne/STM32duino-bootloader/) with this 
@@ -53,11 +64,33 @@ command:
 st-flash write bootloader_only_binaries/generic_boot20_pc13.bin 0x8000000
 ```
 
+### STM32F411 "blackpill"
+This tool has been tested with a "blackpill" STM32F411 devboard.  When targeting
+the blackpill use the following commands to compile and flash the target board
+(if using the makefile and command line `arduino-cli` tools):
+```
+make TARGET=BLACKPILL
+make TARGET=BLACKPILL flash
+```
+
+The standard flash method configured in the `blackpill_sketch.json` is DFU using
+`stm32CubeProg` dfu method. So you will need the STM32Cube tools installed
+before this will work.
+
+If using a blackpill board that is not the STM32F411 board available on Adafruit
+the `sketch.json` file will need to be customized, or manually configured and
+compiled through the normal Arduino IDE.
+
 # About
 The SAE J1708 code is influenced by:
 - https://github.com/freddy120/UARTJ1708_atmel
 
 This code works with an STM32 "bluepill" (STM32F103C8T6) board wired to 
 a copperhill SAE J1708 breakout board on USART1 (PA9 for Tx, PA10 for Rx):
-- https://stm32-base.org/boards/STM32F103C8T6-Blue-Pill.html
+- https://stm32world.com/wiki/Blue_Pill
 - https://copperhilltech.com/sae-j1708-to-uart-breakout-board
+
+This code is also tested on the "blackpill" (STM32F411) board with the same
+connections to the J1708 breakout board:
+- https://stm32world.com/wiki/Black_Pill
+- https://www.adafruit.com/product/4877

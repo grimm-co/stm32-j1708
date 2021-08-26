@@ -1,13 +1,24 @@
+TARGET    ?= BLUEPILL
+ifeq ($(TARGET),BLUEPILL)
+	SKETCH_JSON := bluepill_sketch.json
+else
+ifeq ($(TARGET),BLACKPILL)
+	SKETCH_JSON := blackpill_sketch.json
+else
+$(error Inavlid TARGET ($(TARGET)) choose one of BLUEPILL or BLACKPILL)
+endif
+endif
 
 PROJECT   := $(notdir $(shell pwd))
 BIN       := $(PROJECT).ino.bin
 BUILD_DIR := build
-SRC_FILES := $(PROJECT).ino sketch.json $(wildcard *.cpp) $(wildcard *.h)
+
+SRC_FILES := $(PROJECT).ino $(wildcard *.cpp) $(wildcard *.h)
 
 # Arduino tools like to agressively cache various build components but sometimes 
 # these need to be rebuilt to deal with #define changes, or just for a clean 
 # build.
-SKETCH_CACHE := $(shell arduino-cli compile --show-properties | grep -oP "build.path=\K.*")
+SKETCH_CACHE := $(shell arduino-cli compile --show-properties 2> /dev/null | grep -oP "build.path=\K.*")
 
 # Put the trailing '/' here so the remove command later doesn't accidentally 
 # kill the root directory if something goes wrong with this variable
@@ -63,7 +74,8 @@ verbose: default
 $(BUILD_DIR):
 	mkdir -p $@
 
-$(BUILD_DIR)/$(BIN): $(SRC_FILES) | $(BUILD_DIR)
+$(BUILD_DIR)/$(BIN): $(SRC_FILES) $(SKETCH_JSON) | $(BUILD_DIR)
+	cp $(SKETCH_JSON) sketch.json
 	arduino-cli compile --build-property="build.extra_flags=$(ARDUINO_CLI_ARGS)" --output-dir=$(BUILD_DIR) $(VERBOSE)
 
 flash: $(BUILD_DIR)/$(BIN)
@@ -78,6 +90,9 @@ ifneq ($(wildcard $(BUILD_DIR)/*),)
 endif
 
 distclean: clean
+ifneq ($(wildcard sketch.json),)
+	rm -f sketch.json
+endif
 ifneq ($(SKETCH_CACHE),)
 	rm -rf $(SKETCH_CACHE)
 endif
