@@ -18,7 +18,7 @@ SRC_FILES := $(PROJECT).ino $(wildcard *.cpp) $(wildcard *.h)
 # Arduino tools like to agressively cache various build components but sometimes 
 # these need to be rebuilt to deal with #define changes, or just for a clean 
 # build.
-SKETCH_CACHE := $(shell arduino-cli compile --show-properties 2> /dev/null | grep -oP "build.path=\K.*")
+SKETCH_CACHE := $(shell arduino-cli compile --show-properties > /dev/null 2>&1 | grep -oP "build.path=\K.*")
 
 # Put the trailing '/' here so the remove command later doesn't accidentally 
 # kill the root directory if something goes wrong with this variable
