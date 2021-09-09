@@ -1,3 +1,4 @@
+firmware/sketch.json
 *.d
 *.o
 *.map
@@ -8,3 +9,5 @@
 generated.*
 __pycache__/
 *.egg-info/
+build/*
+dist/*
