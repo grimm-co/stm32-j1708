@@ -10,6 +10,15 @@ If you don't want the J1708 messages decoded you can supply the `-N` option:
 $ j1708dump -N
 ```
 
+An interactive python frontend is also available:
+```
+$ j1708.py -p <port> 
+```
+
+Optionally, a `--tx <file>` parmameter can be specified and it will transmit all of the data
+in the specified file (ASCII hex strings, one message per line) before dropping you to the 
+interactive shell.
+
 # Required Tools
 Because the firmware is built using the STM32 Arduino core there are many 
 settings required to get it to build and flash correctly.  The following will be 
