@@ -5,23 +5,24 @@ import time
 import threading
 
 class J1708Interface(object):
-    def __init__(self, port='/dev/ttyACM0', txfile=None):
+    '''
+    This is the J1708 object. The following methods can be used to 
+    interact with the J1708 bus. Run the command j.methodName? for more
+    information about any particular method (e.g, j.tx_from_file?)
+
+    j.printMsgs
+    j.getMsgCount
+    j.send 
+    j.txFromFile
+
+    '''
+    def __init__(self, port='/dev/ttyACM0'):
         self.msgs = []
         self.partial_msg = b''
         self.port = port
         self.io = serial.Serial(port)
-        self.txfile = txfile
 
         self.startRxThread()
-
-        # Transmit the specified file if it exists
-        if(self.txfile != None):
-            file = open(self.txfile, 'r')
-            lines = file.readlines()
-            file.close()
-            for i in lines:
-                self.send(0xAC, i)
-                time.sleep(0.5)
 
     # Serial RX/TX Thread
     def rxtx(self):
@@ -140,13 +141,36 @@ class J1708Interface(object):
             chksum = 0x100 - chksum
         return chksum
         
+    def txFromFile(self, filename, timing=0.5, mid=None):
+        '''
+        Transmits the data in the specified file. Data should be encoded
+        as hexadecimal strings (e.g, 55AA74 will send the bytes 0x55, 0xAA, 0x74).
+        Checksums are calculated automatically, the data in the file should not include
+        the checksum.
 
-def interactive(port=None, tx=None):
+        If mid is None, the first byte of the data in the file is assumed to be the MID.
+        If mis is specified that mid will be used. Timing is the amount of time to wait between
+        transmissions.
+        '''
+        # Transmit the specified file if it exists
+        file = open(filename, 'r')
+        lines = file.readlines()
+        file.close()
+        for i in lines:
+            if mid is None:
+                self.send(int(i[0:2], 16), i[2:])
+            else:
+                self.send(mid, i)
+            time.sleep(timing)
+
+
+def interactive(port=None):
     global j
     import atexit
-    intro = 'J1708 Shell'
+    intro = 'J1708 Shell\n\nType j? and press enter for help.'
+    print(intro)
 
-    j = J1708Interface(port=port, txfile=tx)
+    j = J1708Interface(port=port)
 
     gbls = globals()
     lcls = locals()

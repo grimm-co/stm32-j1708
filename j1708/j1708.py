@@ -18,14 +18,13 @@ if __name__ == "__main__":
     sys.path.append('.')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--port', help='eg: /dev/ttyACM0') 
-    parser.add_argument('--tx', help='File with J1708 data to transmit')
+    parser.add_argument('-p', '--port', help='eg: /dev/ttyACM0, /dev/tty.usbmodemNNNNNNN, COM8') 
 
     ifo = parser.parse_args()
 
     interface = J1708Interface
 
-    results = interactive(ifo.port, ifo.tx)
+    results = interactive(ifo.port)
     if results == -1:
         print("Error.  Try '-h' from CLI for help.")
 

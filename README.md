@@ -15,9 +15,8 @@ An interactive python frontend is also available:
 $ j1708.py -p <port> 
 ```
 
-Optionally, a `--tx <file>` parmameter can be specified and it will transmit all of the data
-in the specified file (ASCII hex strings, one message per line) before dropping you to the 
-interactive shell.
+A J1708 object called `j` is created and use to send and receive J1708 messages. More 
+usage information can be found by typing `j?` and hitting enter at the prompt.
 
 # Required Tools
 Because the firmware is built using the STM32 Arduino core there are many 
