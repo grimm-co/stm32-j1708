@@ -1,6 +1,6 @@
 {
   "cpu": {
-    "fqbn": "STM32:stm32:GenF4:pnum=BLACKPILL_F411CE,xserial=none,usb=CDC,xusb=FS,opt=o3std,rtlib=nano,upload_method=dfuMethod",
+    "fqbn": "STMicroelectronics:stm32:GenF4:pnum=BLACKPILL_F411CE,xserial=none,usb=CDC,xusb=FS,opt=o3std,rtlib=nano,upload_method=dfuMethod",
     "port": ""
   }
 }
