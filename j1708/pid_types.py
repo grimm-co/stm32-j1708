@@ -23,8 +23,8 @@ class J1708FlagEnum(enum.IntFlag):
         #return f'{self.name} ({self.value:X})'
         return f'{self.name}'
 
-    def __in__(self, other):
-        if self.value & other == self.value:
+    def __contains__(self, other):
+        if self.value & int(other) == self.value:
             return True
         else:
             return False
@@ -43,7 +43,7 @@ class J1708FlagEnum(enum.IntFlag):
         flags = []
         for flag in list(cls):
             #if flag in value:
-            if flag.__in__(value):
+            if flag in value:
                 flags.append(flag)
         return flags
 
@@ -59,10 +59,10 @@ class J1708FlagEnum(enum.IntFlag):
 
 
 class StatusGroupEnum(J1708FlagEnum):
-    # TODO: move to a fully unique class.  The way that the Enum class "steals" 
+    # TODO: move to a fully unique class.  The way that the Enum class "steals"
     # values based on value makes it difficult to define bitmask groups.
     def __new__(cls, value, mask):
-        # Method to ensure that the mask value is not treated as part of the 
+        # Method to ensure that the mask value is not treated as part of the
         # value
         obj = super().__new__(cls, value)
         obj.mask = mask
@@ -78,17 +78,17 @@ class StatusGroupEnum(J1708FlagEnum):
                 raise ValueError(errmsg)
         return obj
 
-    def __in__(self, other):
-        # Customize the "in" operator to ensure that mask group enums only 
+    def _contains__(self, other):
+        # Customize the "in" operator to ensure that mask group enums only
         # validate the specific section of the value.
-        if other & self.mask == self.value & self.mask:
+        if int(other) & self.mask == self.value & self.mask:
             return True
         else:
             return False
 
     def __and__(self, other):
-        # Customize the and operator to ensure that mask group enums only 
-        # validate the specific section of the value. Only return valid data if 
+        # Customize the and operator to ensure that mask group enums only
+        # validate the specific section of the value. Only return valid data if
         # the field when masked exactly matches the value of this flag.
         if other & self.mask == self.value & self.mask:
             return (other & self.value) & self.mask
@@ -96,7 +96,7 @@ class StatusGroupEnum(J1708FlagEnum):
             return 0
 
     def __or__(self, other):
-        # Customize the bitwise-or operator to ensure that or-ing a status group 
+        # Customize the bitwise-or operator to ensure that or-ing a status group
         # to another value will result in the group mask being cleared correctly
         value = other
 
@@ -136,7 +136,7 @@ class StatusGroupEnum(J1708FlagEnum):
 
 class StatusGroupEnumAndValue(StatusGroupEnum):
     def __new__(cls, value, mask, is_value_field=False):
-        # Method to ensure that the mask value is not treated as part of the 
+        # Method to ensure that the mask value is not treated as part of the
         # value
         obj = super().__new__(cls, value)
         obj.mask = mask
@@ -144,7 +144,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
 
         if is_value_field:
             obj._field_offset = get_mask_offset(mask)
-            # Also ensure that there are no other fields that have masks that 
+            # Also ensure that there are no other fields that have masks that
             # overlap this one.
             for field in list(cls):
                 if field.mask == mask:
@@ -163,17 +163,17 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
                     raise ValueError(errmsg)
         return obj
 
-    def __in__(self, other):
+    def __contains__(self, other):
         if self.is_value_field:
-            # Value fields are always present, but for the purposes of the "in" 
+            # Value fields are always present, but for the purposes of the "in"
             # operator return false
             return False
         else:
-            return super().__in__(other)
+            return super().__contains__(other)
 
     def __and__(self, other):
         if self.is_value_field:
-            # for the bitwise-and operator just mask out the field from the 
+            # for the bitwise-and operator just mask out the field from the
             # value specified
             return value & self.mask
         else:
@@ -195,7 +195,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
         matches = []
         for flag in list(cls):
             #if not flag.is_value_field and flag in value:
-            if not flag.is_value_field and flag.__in__(value):
+            if not flag.is_value_field and value in flag:
                 matches.append(flag)
         return matches
 
@@ -215,7 +215,7 @@ class StatusGroupEnumAndValue(StatusGroupEnum):
 
     @classmethod
     def encode(cls, flags, **kwargs):
-        # the flags could also be supplied as a dictionary to allow setting 
+        # the flags could also be supplied as a dictionary to allow setting
         # a non-status field explicitly
         if isinstance(flags[0], dict):
             assert not kwargs
@@ -315,7 +315,7 @@ class AxleSliderStatus(StatusGroupEnum):
 
 # PID: 11
 class CargoSecurement(StatusGroupEnumAndValue):
-    # The bit range for the "Value" portion of the PID, the value must be an 
+    # The bit range for the "Value" portion of the PID, the value must be an
     # integer even though it won't be used.
     CARGO_SECTOR_NUM = (0, 0xF0, True)
 
@@ -529,7 +529,7 @@ class EngineRetarderStatus(StatusGroupEnum):
 
 # PID: 192
 class MultisectionParam:
-    # I'd call this a "multisegment" parameter, but the J1708 standard calls it 
+    # I'd call this a "multisegment" parameter, but the J1708 standard calls it
     # "multisection" so that's what it is called
     def __init__(self, pid, cur, last, data, size=None):
         self.pid = pid
@@ -575,11 +575,11 @@ class MultisectionParam:
 
 # PID: 194
 class DTCCode(StatusGroupEnumAndValue):
-    # The bit range for the "Value" portion of the PID, the value must be an 
+    # The bit range for the "Value" portion of the PID, the value must be an
     # integer even though it won't be used.
     FMI         = (0, 0x0F, True)
 
-    # As always, use the bits that don't matter in the value fields to ensure 
+    # As always, use the bits that don't matter in the value fields to ensure
     # that the "value" for each enum is unique.
     COUNT_INCL  = (0b10000000, 0x80)
     INACTIVE    = (0b01000000, 0x40)
@@ -676,12 +676,12 @@ class DTC_REQ_TYPE(enum.IntEnum):
 
 
 class DTCRequestCode(StatusGroupEnumAndValue):
-    # The bit range for the "Value" portion of the PID, the value must be an 
+    # The bit range for the "Value" portion of the PID, the value must be an
     # integer even though it won't be used.
     FMI          = (0, 0x0F, True)
     DTC_REQ_TYPE = (1, 0xC0, True)
 
-    # As always, use the bits that don't matter in the value fields to ensure 
+    # As always, use the bits that don't matter in the value fields to ensure
     # that the "value" for each enum is unique.
     STANDARD                   = (0b00111111, 0x20)
     EXTENDED                   = (0b00011111, 0x20)
@@ -732,7 +732,7 @@ class DTCRequest:
 
     @classmethod
     def encode(cls, mid=None, pid=None, sid=None, fmi=None, **kwargs):
-        # Awkward workaround since the value dict uses a key name that is 
+        # Awkward workaround since the value dict uses a key name that is
         # a reserved function name
         if 'type' in kwargs:
             req_type = kwargs['type']
@@ -765,7 +765,7 @@ class DTCRequest:
             if 'fmi' in item and fmi is None:
                 fmi = item['fmi']
 
-        # For now only the diagnostic tool side of the DTC request PID is 
+        # For now only the diagnostic tool side of the DTC request PID is
         # implemented
         if mid is None:
             raise J1708EncodeError('Unable to encode PID 195 without destination MID')
@@ -773,7 +773,7 @@ class DTCRequest:
         if pid is not None and sid is not None:
             raise J1708EncodeError(f'Unable to encode PID 195 with both PID and SID (msg: {pid}, {sid})')
         elif pid is None and sid is None:
-            # Unless the request type is CLEAR_ALL_DTCS (in which case the 
+            # Unless the request type is CLEAR_ALL_DTCS (in which case the
             # sid/pid byte is ignored) a sid or pid must be included
             if DTC_REQ_TYPE.CLEAR_ALL_DTCS == req_type:
                 # Default to a SID of 0
@@ -820,12 +820,12 @@ class DTC_RESP_TYPE(enum.IntEnum):
 
 
 class DTCResponseCode(StatusGroupEnumAndValue):
-    # The bit range for the "Value" portion of the PID, the value must be an 
+    # The bit range for the "Value" portion of the PID, the value must be an
     # integer even though it won't be used.
     FMI           = (0, 0x0F, True)
     DTC_RESP_TYPE = (1, 0xC0, True)
 
-    # As always, use the bits that don't matter in the value fields to ensure 
+    # As always, use the bits that don't matter in the value fields to ensure
     # that the "value" for each enum is unique.
     STANDARD                   = (0b00111111, 0x20)
     EXTENDED                   = (0b00011111, 0x20)
